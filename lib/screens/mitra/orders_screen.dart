@@ -9,6 +9,8 @@ import '../../core/widgets/icon_container.dart';
 import '../../core/widgets/order_list_item.dart';
 import '../../services/api_client.dart';
 import '../../models/order.dart';
+import 'order_detail_screen.dart';
+import 'create_order_screen.dart';
 
 class MitraOrdersScreen extends StatefulWidget {
   const MitraOrdersScreen({super.key});
@@ -68,6 +70,17 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
     }
   }
 
+  Future<void> _navigateToCreateOrder() async {
+    final shouldRefresh = await Navigator.push<bool>(
+      context,
+      MaterialPageRoute(builder: (context) => const CreateOrderScreen()),
+    );
+
+    if (shouldRefresh == true) {
+      _fetchOrders(); // Refresh orders after creating new order
+    }
+  }
+
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -120,23 +133,33 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
         elevation: 0,
         actions: [
           IconButton(
-            icon: const Icon(Icons.logout_rounded),
+            icon: const Icon(Icons.logout),
             onPressed: _handleLogout,
-            tooltip: 'Keluar',
+            tooltip: 'Logout',
           ),
         ],
       ),
+      floatingActionButton: FloatingActionButton.extended(
+        onPressed: _navigateToCreateOrder,
+        backgroundColor: AppColors.primary,
+        foregroundColor: AppColors.surface,
+        icon: const Icon(Icons.add),
+        label: const Text('Buat Pesanan'),
+      ),
       body: RefreshIndicator(
         onRefresh: _fetchOrders,
+        color: AppColors.primary,
         child: _isLoading && _orders.isEmpty
-            ? const Center(child: CircularProgressIndicator())
+            ? const Center(
+                child: CircularProgressIndicator(color: AppColors.primary),
+              )
             : SingleChildScrollView(
                 physics: const AlwaysScrollableScrollPhysics(),
                 padding: const EdgeInsets.all(AppSpacings.screenPadding),
                 child: Column(
-                  mainAxisAlignment: MainAxisAlignment.center,
+                  crossAxisAlignment: CrossAxisAlignment.stretch,
                   children: [
-                    _buildWelcomeCard(),
+                    _buildUserInfoCard(),
                     const SizedBox(height: AppSpacings.sectionSpacing),
                     _buildOrdersSection(),
                   ],
@@ -146,7 +169,7 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
     );
   }
 
-  Widget _buildWelcomeCard() {
+  Widget _buildUserInfoCard() {
     return AppCard(
       child: Column(
         children: [
@@ -227,9 +250,11 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
             status: order.statusDisplay,
             statusColor: _getStatusColor(order.status),
             onTap: () {
-              // TODO: Navigate to order detail/tracking
-              ScaffoldMessenger.of(context).showSnackBar(
-                SnackBar(content: Text('Detail pesanan ${order.orderCode}')),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => OrderDetailScreen(order: order),
+                ),
               );
             },
           ),

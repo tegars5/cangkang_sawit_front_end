@@ -5,6 +5,7 @@ import '../theme/app_text_styles.dart';
 /// Reusable text field widget with consistent styling
 class AppTextField extends StatelessWidget {
   final TextEditingController? controller;
+  final String? label;
   final String? labelText;
   final String? hintText;
   final IconData? prefixIcon;
@@ -13,10 +14,12 @@ class AppTextField extends StatelessWidget {
   final TextInputType? keyboardType;
   final String? Function(String?)? validator;
   final void Function(String)? onChanged;
+  final int? maxLines;
 
   const AppTextField({
     super.key,
     this.controller,
+    this.label,
     this.labelText,
     this.hintText,
     this.prefixIcon,
@@ -25,6 +28,7 @@ class AppTextField extends StatelessWidget {
     this.keyboardType,
     this.validator,
     this.onChanged,
+    this.maxLines = 1,
   });
 
   @override
@@ -35,8 +39,9 @@ class AppTextField extends StatelessWidget {
       keyboardType: keyboardType,
       style: AppTextStyles.input,
       onChanged: onChanged,
+      maxLines: obscureText ? 1 : maxLines,
       decoration: InputDecoration(
-        labelText: labelText,
+        labelText: label ?? labelText,
         hintText: hintText,
         prefixIcon: prefixIcon != null
             ? Icon(prefixIcon, color: AppColors.primary)

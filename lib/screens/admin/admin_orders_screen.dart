@@ -7,6 +7,7 @@ import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/order_list_item.dart';
 import '../../services/api_client.dart';
 import '../../models/order.dart';
+import 'assign_driver_dialog.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   const AdminOrdersScreen({super.key});
@@ -139,35 +140,15 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
   }
 
-  void _showAssignDriverDialog(Order order) {
-    showDialog(
+  void _showAssignDriverDialog(Order order) async {
+    final shouldRefresh = await showDialog<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Assign Driver'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          children: [
-            Text(
-              'Fitur assign driver untuk ${order.orderCode} akan segera ditambahkan.',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacings.md),
-            Text(
-              'Endpoint: POST /api/admin/orders/${order.id}/assign-driver',
-              style: AppTextStyles.bodySmall.copyWith(
-                color: AppColors.textTertiary,
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('OK'),
-          ),
-        ],
-      ),
+      builder: (context) => AssignDriverDialog(order: order),
     );
+
+    if (shouldRefresh == true) {
+      _fetchOrders(); // Refresh orders after successful assignment
+    }
   }
 
   Color _getStatusColor(String status) {

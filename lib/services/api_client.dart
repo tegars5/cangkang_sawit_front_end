@@ -157,4 +157,46 @@ class ApiClient {
       throw Exception('Gagal melakukan DELETE request: $e');
     }
   }
+
+  // Method untuk mendapatkan jarak order (gudang ke tujuan)
+  Future<http.Response> getOrderDistance(int orderId) async {
+    return await get('/orders/$orderId/distance');
+  }
+
+  // Method untuk mendapatkan jarak driver (driver ke tujuan)
+  Future<http.Response> getDriverDistance(int deliveryOrderId) async {
+    return await get('/driver/delivery-orders/$deliveryOrderId/distance');
+  }
+
+  // Method untuk mendapatkan list drivers (admin)
+  Future<http.Response> getDrivers() async {
+    return await get('/admin/drivers');
+  }
+
+  // Method untuk assign driver ke order (admin)
+  Future<http.Response> assignDriver(int orderId, int driverId) async {
+    return await post('/admin/orders/$orderId/assign-driver', {
+      'driver_id': driverId,
+    });
+  }
+
+  // Method untuk mendapatkan list products
+  Future<http.Response> getProducts() async {
+    return await get('/products');
+  }
+
+  // Method untuk create order baru (mitra)
+  Future<http.Response> createOrder(Map<String, dynamic> orderData) async {
+    return await post('/orders', orderData);
+  }
+
+  // Method untuk pay order (mitra)
+  Future<http.Response> payOrder(int orderId) async {
+    return await post('/orders/$orderId/pay', {});
+  }
+
+  // Method untuk cancel order (mitra)
+  Future<http.Response> cancelOrder(int orderId) async {
+    return await post('/orders/$orderId/cancel', {});
+  }
 }

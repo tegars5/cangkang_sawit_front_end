@@ -6,9 +6,9 @@ import '../../core/theme/app_spacings.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/icon_container.dart';
 import '../../core/widgets/order_list_item.dart';
-import '../../core/widgets/primary_button.dart';
 import '../../services/api_client.dart';
 import '../../models/delivery_order.dart';
+import 'driver_task_detail_screen.dart';
 
 class DriverTasksScreen extends StatefulWidget {
   const DriverTasksScreen({super.key});
@@ -68,14 +68,6 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
     }
   }
 
-  void _showSuccess(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.success),
-      );
-    }
-  }
-
   Future<void> _handleLogout() async {
     final confirm = await showDialog<bool>(
       context: context,
@@ -99,142 +91,6 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
       await _apiClient.clearAllData();
       if (!mounted) return;
       Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
-    }
-  }
-
-  void _showTaskActions(DeliveryOrder task) {
-    showModalBottomSheet(
-      context: context,
-      shape: const RoundedRectangleBorder(
-        borderRadius: BorderRadius.vertical(top: Radius.circular(20)),
-      ),
-      builder: (context) => Padding(
-        padding: const EdgeInsets.all(AppSpacings.screenPadding),
-        child: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Aksi untuk ${task.orderCode}',
-              style: AppTextStyles.titleLarge,
-              textAlign: TextAlign.center,
-            ),
-            const SizedBox(height: AppSpacings.md),
-            Text(
-              'Tujuan: ${task.destination}',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacings.sm),
-            Text(
-              'Status saat ini: ${task.statusDisplay}',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacings.sectionSpacing),
-            PrimaryButton(
-              text: 'Update Status',
-              onPressed: () {
-                Navigator.pop(context);
-                _showUpdateStatusDialog(task);
-              },
-            ),
-            const SizedBox(height: AppSpacings.sm),
-            OutlinedButton.icon(
-              onPressed: () {
-                Navigator.pop(context);
-                _sendLocation(task);
-              },
-              icon: const Icon(Icons.location_on),
-              label: const Text('Kirim Lokasi'),
-            ),
-            const SizedBox(height: AppSpacings.sm),
-            TextButton(
-              onPressed: () => Navigator.pop(context),
-              child: const Text('Batal'),
-            ),
-          ],
-        ),
-      ),
-    );
-  }
-
-  void _showUpdateStatusDialog(DeliveryOrder task) {
-    final statuses = [
-      {'value': 'on_the_way', 'label': 'Dalam Perjalanan'},
-      {'value': 'arrived', 'label': 'Tiba di Tujuan'},
-      {'value': 'completed', 'label': 'Selesai'},
-    ];
-
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Update Status'),
-        content: Column(
-          mainAxisSize: MainAxisSize.min,
-          crossAxisAlignment: CrossAxisAlignment.stretch,
-          children: [
-            Text(
-              'Pilih status baru untuk ${task.orderCode}:',
-              style: AppTextStyles.bodyMedium,
-            ),
-            const SizedBox(height: AppSpacings.md),
-            ...statuses.map(
-              (status) => Padding(
-                padding: const EdgeInsets.only(bottom: AppSpacings.sm),
-                child: ElevatedButton(
-                  onPressed: () {
-                    Navigator.pop(context);
-                    _updateTaskStatus(task, status['value']!);
-                  },
-                  child: Text(status['label']!),
-                ),
-              ),
-            ),
-          ],
-        ),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context),
-            child: const Text('Batal'),
-          ),
-        ],
-      ),
-    );
-  }
-
-  Future<void> _updateTaskStatus(DeliveryOrder task, String newStatus) async {
-    try {
-      final response = await _apiClient.post(
-        '/driver/delivery-orders/${task.id}/status',
-        {'status': newStatus},
-      );
-
-      if (response.statusCode == 200) {
-        _showSuccess('Status berhasil diupdate');
-        await _fetchTasks(); // Refresh list
-      } else {
-        _showError('Gagal update status');
-      }
-    } catch (e) {
-      _showError('Terjadi kesalahan: $e');
-    }
-  }
-
-  Future<void> _sendLocation(DeliveryOrder task) async {
-    try {
-      // Using dummy coordinates for now
-      // TODO: Get real GPS coordinates
-      final response = await _apiClient.post(
-        '/driver/delivery-orders/${task.id}/track',
-        {'latitude': -6.2088, 'longitude': 106.8456},
-      );
-
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        _showSuccess('Lokasi berhasil dikirim');
-      } else {
-        _showError('Gagal mengirim lokasi');
-      }
-    } catch (e) {
-      _showError('Terjadi kesalahan: $e');
     }
   }
 
@@ -396,7 +252,17 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
             subtitle: '${task.destination} • ${task.totalWeight} ton',
             status: task.statusDisplay,
             statusColor: _getStatusColor(task.status),
-            onTap: () => _showTaskActions(task),
+            onTap: () async {
+              final shouldRefresh = await Navigator.push<bool>(
+                context,
+                MaterialPageRoute(
+                  builder: (context) => DriverTaskDetailScreen(task: task),
+                ),
+              );
+              if (shouldRefresh == true) {
+                _fetchTasks();
+              }
+            },
           ),
         ),
       ],

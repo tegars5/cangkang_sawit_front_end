@@ -7,6 +7,9 @@ class Order {
   final String destination;
   final String? mitraName;
   final String? createdAt;
+  final String? paymentStatus;
+  final double? totalPrice;
+  final String? paymentMethod;
 
   Order({
     required this.id,
@@ -16,6 +19,9 @@ class Order {
     required this.destination,
     this.mitraName,
     this.createdAt,
+    this.paymentStatus,
+    this.totalPrice,
+    this.paymentMethod,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
@@ -27,6 +33,9 @@ class Order {
       destination: json['destination'] as String? ?? 'Unknown',
       mitraName: json['mitra']?['name'] as String?,
       createdAt: json['created_at'] as String?,
+      paymentStatus: json['payment_status'] as String?,
+      totalPrice: (json['total_price'] as num?)?.toDouble(),
+      paymentMethod: json['payment_method'] as String?,
     );
   }
 
@@ -43,5 +52,26 @@ class Order {
       default:
         return status;
     }
+  }
+
+  String get paymentStatusDisplay {
+    switch (paymentStatus) {
+      case 'pending':
+        return 'Belum Dibayar';
+      case 'paid':
+        return 'Sudah Dibayar';
+      case 'failed':
+        return 'Gagal';
+      case 'expired':
+        return 'Kadaluarsa';
+      default:
+        return paymentStatus ?? 'Unknown';
+    }
+  }
+
+  /// Formatted total price for display
+  String get formattedTotalPrice {
+    if (totalPrice == null) return 'N/A';
+    return 'Rp ${totalPrice!.toStringAsFixed(0).replaceAllMapped(RegExp(r'(\d{1,3})(?=(\d{3})+(?!\d))'), (Match m) => '${m[1]}.')}';
   }
 }
