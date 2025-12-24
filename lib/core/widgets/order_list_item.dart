@@ -28,10 +28,7 @@ class OrderListItem extends StatelessWidget {
       decoration: BoxDecoration(
         color: AppColors.surface,
         borderRadius: AppRadius.mediumRadius,
-        border: Border.all(
-          color: AppColors.border,
-          width: 1,
-        ),
+        border: Border.all(color: AppColors.border, width: 1),
       ),
       child: Material(
         color: Colors.transparent,
@@ -69,7 +66,9 @@ class OrderListItem extends StatelessWidget {
                     vertical: AppSpacings.xs + 2,
                   ),
                   decoration: BoxDecoration(
-                    color: (statusColor ?? AppColors.primary).withValues(alpha: 0.1),
+                    color: (statusColor ?? AppColors.primary).withValues(
+                      alpha: 0.1,
+                    ),
                     borderRadius: BorderRadius.circular(AppRadius.small),
                   ),
                   child: Text(

@@ -1,13 +1,13 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
 import '../../core/theme/app_radius.dart';
+import '../../core/utils/result.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/loading_section.dart';
 import '../../core/widgets/error_view.dart';
-import '../../services/api_client.dart';
+import '../../repositories/driver_repository.dart';
 import '../../models/order.dart';
 import '../../models/driver.dart';
 
@@ -21,7 +21,7 @@ class AssignDriverDialog extends StatefulWidget {
 }
 
 class _AssignDriverDialogState extends State<AssignDriverDialog> {
-  final _apiClient = ApiClient();
+  final _driverRepository = DriverRepository();
   List<Driver> _drivers = [];
   bool _isLoading = false;
   bool _isAssigning = false;
@@ -40,30 +40,23 @@ class _AssignDriverDialogState extends State<AssignDriverDialog> {
       _error = null;
     });
 
-    try {
-      final response = await _apiClient.getDrivers();
+    final result = await _driverRepository.getDrivers();
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        setState(() {
-          _drivers = data.map((json) => Driver.fromJson(json)).toList();
+    if (!mounted) return;
+
+    result
+        .onSuccess((drivers) {
+          setState(() {
+            _drivers = drivers;
+            _isLoading = false;
+          });
+        })
+        .onFailure((failure) {
+          setState(() {
+            _error = failure.message;
+            _isLoading = false;
+          });
         });
-      } else {
-        setState(() {
-          _error = 'Gagal memuat daftar driver';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _error = 'Terjadi kesalahan: $e';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
-        });
-      }
-    }
   }
 
   Future<void> _handleAssign() async {
@@ -79,43 +72,32 @@ class _AssignDriverDialogState extends State<AssignDriverDialog> {
 
     setState(() => _isAssigning = true);
 
-    try {
-      final response = await _apiClient.assignDriver(
-        widget.order.id,
-        _selectedDriverId!,
-      );
+    final result = await _driverRepository.assignDriver(
+      widget.order.id,
+      _selectedDriverId!,
+    );
 
-      if (response.statusCode == 200) {
-        if (!mounted) return;
-        Navigator.of(context).pop(true); // Return true to indicate success
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Driver berhasil ditugaskan'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      } else {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Gagal menugaskan driver'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    } finally {
-      if (mounted) {
-        setState(() => _isAssigning = false);
-      }
-    }
+    if (!mounted) return;
+
+    result
+        .onSuccess((_) {
+          Navigator.pop(context, true);
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Driver berhasil ditugaskan'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+        })
+        .onFailure((failure) {
+          setState(() => _isAssigning = false);
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(failure.message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        });
   }
 
   @override

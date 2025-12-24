@@ -1,14 +1,14 @@
-import 'dart:convert';
+import 'package:cangkang_sawit_mobile/core/widgets/icon_container.dart';
 import 'package:flutter/material.dart';
 import 'package:url_launcher/url_launcher.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
 import '../../core/theme/app_radius.dart';
+import '../../core/utils/result.dart';
 import '../../core/widgets/app_card.dart';
-import '../../core/widgets/icon_container.dart';
 import '../../core/widgets/primary_button.dart';
-import '../../services/api_client.dart';
+import '../../repositories/order_repository.dart';
 import '../../models/order.dart';
 import '../../models/order_distance.dart';
 
@@ -22,7 +22,7 @@ class OrderDetailScreen extends StatefulWidget {
 }
 
 class _OrderDetailScreenState extends State<OrderDetailScreen> {
-  final _apiClient = ApiClient();
+  final _orderRepository = OrderRepository();
   OrderDistance? _orderDistance;
   bool _isLoadingDistance = false;
   String? _distanceError;
@@ -39,95 +39,80 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
       _distanceError = null;
     });
 
-    try {
-      final response = await _apiClient.getOrderDistance(widget.order.id);
+    final result = await _orderRepository.getOrderDistance(widget.order.id);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _orderDistance = OrderDistance.fromJson(data);
+    if (!mounted) return;
+
+    result
+        .onSuccess((distance) {
+          setState(() {
+            _orderDistance = distance;
+            _isLoadingDistance = false;
+          });
+        })
+        .onFailure((failure) {
+          setState(() {
+            _distanceError = failure.message;
+            _isLoadingDistance = false;
+          });
         });
-      } else {
-        setState(() {
-          _distanceError = 'Gagal memuat informasi jarak';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _distanceError = 'Terjadi kesalahan: $e';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingDistance = false;
-        });
-      }
-    }
   }
 
   Future<void> _handlePayment() async {
-    try {
-      final response = await _apiClient.payOrder(widget.order.id);
+    final result = await _orderRepository.payOrder(widget.order.id);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        final paymentUrl = data['payment_url'] as String?;
+    if (!mounted) return;
 
-        if (paymentUrl != null && paymentUrl.isNotEmpty) {
-          final uri = Uri.parse(paymentUrl);
-          if (await canLaunchUrl(uri)) {
-            await launchUrl(uri, mode: LaunchMode.externalApplication);
-            if (!mounted) return;
-            ScaffoldMessenger.of(context).showSnackBar(
-              const SnackBar(
-                content: Text('Silakan selesaikan pembayaran di browser'),
-                backgroundColor: AppColors.success,
-              ),
-            );
+    result
+        .onSuccess((data) async {
+          final paymentUrl = data['payment_url'] as String?;
+
+          if (paymentUrl != null && paymentUrl.isNotEmpty) {
+            final uri = Uri.parse(paymentUrl);
+            if (await canLaunchUrl(uri)) {
+              await launchUrl(uri, mode: LaunchMode.externalApplication);
+
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Silakan selesaikan pembayaran di browser'),
+                  backgroundColor: AppColors.success,
+                ),
+              );
+            } else {
+              if (!mounted) return;
+              ScaffoldMessenger.of(context).showSnackBar(
+                const SnackBar(
+                  content: Text('Gagal membuka halaman pembayaran'),
+                  backgroundColor: AppColors.error,
+                ),
+              );
+            }
           } else {
             if (!mounted) return;
             ScaffoldMessenger.of(context).showSnackBar(
               const SnackBar(
-                content: Text('Tidak dapat membuka URL pembayaran'),
+                content: Text('URL pembayaran tidak tersedia'),
                 backgroundColor: AppColors.error,
               ),
             );
           }
-        } else {
-          if (!mounted) return;
+        })
+        .onFailure((failure) {
           ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('URL pembayaran tidak tersedia'),
+            SnackBar(
+              content: Text(failure.message),
               backgroundColor: AppColors.error,
             ),
           );
-        }
-      } else {
-        if (!mounted) return;
-        final errorData = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorData['message'] ?? 'Gagal memproses pembayaran'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+        });
   }
 
   Future<void> _handleCancelOrder() async {
     final confirm = await showDialog<bool>(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Batalkan Pesanan'),
+        title: const Text('Konfirmasi Pembatalan'),
         content: const Text('Apakah Anda yakin ingin membatalkan pesanan ini?'),
         actions: [
           TextButton(
@@ -145,37 +130,28 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
 
     if (confirm != true) return;
 
-    try {
-      final response = await _apiClient.cancelOrder(widget.order.id);
+    final result = await _orderRepository.cancelOrder(widget.order.id);
 
-      if (response.statusCode == 200) {
-        if (!mounted) return;
-        Navigator.pop(context, true); // Return true to refresh orders list
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Pesanan berhasil dibatalkan'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      } else {
-        if (!mounted) return;
-        final errorData = jsonDecode(response.body);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(errorData['message'] ?? 'Gagal membatalkan pesanan'),
-            backgroundColor: AppColors.error,
-          ),
-        );
-      }
-    } catch (e) {
-      if (!mounted) return;
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Terjadi kesalahan: $e'),
-          backgroundColor: AppColors.error,
-        ),
-      );
-    }
+    if (!mounted) return;
+
+    result
+        .onSuccess((_) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            const SnackBar(
+              content: Text('Pesanan berhasil dibatalkan'),
+              backgroundColor: AppColors.success,
+            ),
+          );
+          Navigator.pop(context, true);
+        })
+        .onFailure((failure) {
+          ScaffoldMessenger.of(context).showSnackBar(
+            SnackBar(
+              content: Text(failure.message),
+              backgroundColor: AppColors.error,
+            ),
+          );
+        });
   }
 
   Color _getStatusColor(String status) {

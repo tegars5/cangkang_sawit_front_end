@@ -1,14 +1,15 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:geolocator/geolocator.dart';
+import 'package:permission_handler/permission_handler.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
 import '../../core/theme/app_radius.dart';
+import '../../core/utils/result.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/icon_container.dart';
 import '../../core/widgets/primary_button.dart';
-import '../../services/api_client.dart';
+import '../../repositories/driver_repository.dart';
 import '../../models/delivery_order.dart';
 import '../../models/driver_distance.dart';
 
@@ -22,7 +23,7 @@ class DriverTaskDetailScreen extends StatefulWidget {
 }
 
 class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
-  final _apiClient = ApiClient();
+  final _driverRepository = DriverRepository();
   DriverDistance? _driverDistance;
   bool _isLoadingDistance = false;
   String? _distanceError;
@@ -40,55 +41,54 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
       _distanceError = null;
     });
 
-    try {
-      final response = await _apiClient.getDriverDistance(widget.task.id);
+    final result = await _driverRepository.getDriverDistance(widget.task.id);
 
-      if (response.statusCode == 200) {
-        final data = jsonDecode(response.body);
-        setState(() {
-          _driverDistance = DriverDistance.fromJson(data);
+    if (!mounted) return;
+
+    result
+        .onSuccess((distance) {
+          setState(() {
+            _driverDistance = distance;
+            _isLoadingDistance = false;
+          });
+        })
+        .onFailure((failure) {
+          setState(() {
+            _distanceError = failure.message;
+            _isLoadingDistance = false;
+          });
         });
-      } else {
-        setState(() {
-          _distanceError = 'Gagal memuat informasi jarak';
-        });
-      }
-    } catch (e) {
-      setState(() {
-        _distanceError = 'Terjadi kesalahan: $e';
-      });
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoadingDistance = false;
-        });
-      }
-    }
   }
 
   Future<void> _updateTaskStatus(String newStatus) async {
     setState(() => _isUpdatingStatus = true);
 
     try {
-      final response = await _apiClient.post(
-        '/driver/delivery-orders/${widget.task.id}/status',
-        {'status': newStatus},
+      final result = await _driverRepository.updateTaskStatus(
+        widget.task.id,
+        newStatus,
       );
 
-      if (response.statusCode == 200) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Status berhasil diupdate'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-        Navigator.pop(context, true); // Return true to indicate refresh needed
-      } else {
-        _showError('Gagal update status');
-      }
-    } catch (e) {
-      _showError('Terjadi kesalahan: $e');
+      if (!mounted) return;
+
+      result
+          .onSuccess((_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Status berhasil diperbarui'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+            Navigator.pop(context, true);
+          })
+          .onFailure((failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(failure.message),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          });
     } finally {
       if (mounted) {
         setState(() => _isUpdatingStatus = false);
@@ -97,54 +97,74 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
   }
 
   Future<void> _sendLocation() async {
+    // Check location permission
+    var status = await Permission.location.status;
+    if (status.isDenied) {
+      status = await Permission.location.request();
+    }
+
+    if (status.isPermanentlyDenied) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text(
+            'Izin lokasi ditolak permanen. Silakan aktifkan di pengaturan.',
+          ),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    if (!status.isGranted) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Izin lokasi diperlukan untuk mengirim lokasi'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
+    // Get current position
     try {
-      // Check location permission
-      LocationPermission permission = await Geolocator.checkPermission();
-
-      if (permission == LocationPermission.denied) {
-        permission = await Geolocator.requestPermission();
-        if (permission == LocationPermission.denied) {
-          _showError('Izin lokasi ditolak');
-          return;
-        }
-      }
-
-      if (permission == LocationPermission.deniedForever) {
-        _showError('Izin lokasi ditolak permanen. Aktifkan di pengaturan.');
-        return;
-      }
-
-      // Get current position
       final position = await Geolocator.getCurrentPosition(
         desiredAccuracy: LocationAccuracy.high,
       );
 
-      // Send to API
-      final response = await _apiClient.post(
-        '/driver/delivery-orders/${widget.task.id}/track',
-        {'latitude': position.latitude, 'longitude': position.longitude},
+      final result = await _driverRepository.sendLocation(
+        widget.task.id,
+        position.latitude,
+        position.longitude,
       );
 
-      if (response.statusCode == 200 || response.statusCode == 201) {
-        if (!mounted) return;
-        ScaffoldMessenger.of(context).showSnackBar(
-          const SnackBar(
-            content: Text('Lokasi berhasil dikirim'),
-            backgroundColor: AppColors.success,
-          ),
-        );
-      } else {
-        _showError('Gagal mengirim lokasi');
-      }
-    } catch (e) {
-      _showError('Terjadi kesalahan: $e');
-    }
-  }
+      if (!mounted) return;
 
-  void _showError(String message) {
-    if (mounted) {
+      result
+          .onSuccess((_) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              const SnackBar(
+                content: Text('Lokasi berhasil dikirim'),
+                backgroundColor: AppColors.success,
+              ),
+            );
+          })
+          .onFailure((failure) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text(failure.message),
+                backgroundColor: AppColors.error,
+              ),
+            );
+          });
+    } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
+        SnackBar(
+          content: Text('Gagal mendapatkan lokasi: $e'),
+          backgroundColor: AppColors.error,
+        ),
       );
     }
   }
@@ -333,14 +353,6 @@ class _DriverTaskDetailScreenState extends State<DriverTaskDetailScreen> {
             label: 'Berat Total',
             value: '${widget.task.totalWeight} ton',
           ),
-          if (widget.task.pickupLocation != null) ...[
-            const SizedBox(height: AppSpacings.sm),
-            _buildDetailRow(
-              icon: Icons.warehouse_outlined,
-              label: 'Lokasi Pickup',
-              value: widget.task.pickupLocation!,
-            ),
-          ],
         ],
       ),
     );

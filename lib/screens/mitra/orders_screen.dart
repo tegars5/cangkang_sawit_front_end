@@ -1,16 +1,18 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
 import '../../core/theme/app_radius.dart';
+import '../../core/utils/result.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/icon_container.dart';
 import '../../core/widgets/order_list_item.dart';
-import '../../services/api_client.dart';
+import '../../repositories/auth_repository.dart';
+import '../../repositories/order_repository.dart';
 import '../../models/order.dart';
-import 'order_detail_screen.dart';
 import 'create_order_screen.dart';
+import 'order_detail_screen.dart';
 
 class MitraOrdersScreen extends StatefulWidget {
   const MitraOrdersScreen({super.key});
@@ -20,10 +22,11 @@ class MitraOrdersScreen extends StatefulWidget {
 }
 
 class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
-  final _apiClient = ApiClient();
-  Map<String, dynamic>? _userData;
+  final _authRepository = AuthRepository();
+  final _orderRepository = OrderRepository();
   List<Order> _orders = [];
   bool _isLoading = false;
+  Map<String, dynamic>? _userData; // Keep _userData for display purposes
 
   @override
   void initState() {
@@ -33,41 +36,35 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
   }
 
   Future<void> _loadUserData() async {
-    final userData = await _apiClient.getUserData();
-    setState(() {
-      _userData = userData;
-    });
+    final userData = await _authRepository.getUserData();
+    if (userData != null) {
+      setState(() {
+        _userData = userData;
+      });
+    }
   }
 
   Future<void> _fetchOrders() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
-    try {
-      final response = await _apiClient.get('/orders');
+    final result = await _orderRepository.getOrders();
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        setState(() {
-          _orders = data.map((json) => Order.fromJson(json)).toList();
+    if (!mounted) return;
+
+    result
+        .onSuccess((orders) {
+          setState(() {
+            _orders = orders;
+            _isLoading = false;
+          });
+        })
+        .onFailure((failure) {
+          setState(() {
+            _isLoading = false;
+          });
         });
-      } else {
-        _showError('Gagal memuat pesanan');
-      }
-    } catch (e) {
-      _showError('Terjadi kesalahan: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
-      );
-    }
   }
 
   Future<void> _navigateToCreateOrder() async {
@@ -75,7 +72,6 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
       context,
       MaterialPageRoute(builder: (context) => const CreateOrderScreen()),
     );
-
     if (shouldRefresh == true) {
       _fetchOrders(); // Refresh orders after creating new order
     }
@@ -89,11 +85,11 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
         content: const Text('Apakah Anda yakin ingin keluar?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Batal'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout'),
           ),
         ],
@@ -101,9 +97,9 @@ class _MitraOrdersScreenState extends State<MitraOrdersScreen> {
     );
 
     if (confirm == true) {
-      await _apiClient.clearAllData();
+      await _authRepository.logout();
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      context.go('/login');
     }
   }
 

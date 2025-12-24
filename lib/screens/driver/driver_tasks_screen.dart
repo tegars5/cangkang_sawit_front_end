@@ -1,12 +1,14 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
+import '../../core/utils/result.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/icon_container.dart';
 import '../../core/widgets/order_list_item.dart';
-import '../../services/api_client.dart';
+import '../../repositories/driver_repository.dart';
+import '../../repositories/auth_repository.dart';
 import '../../models/delivery_order.dart';
 import 'driver_task_detail_screen.dart';
 
@@ -18,54 +20,38 @@ class DriverTasksScreen extends StatefulWidget {
 }
 
 class _DriverTasksScreenState extends State<DriverTasksScreen> {
-  final _apiClient = ApiClient();
-  Map<String, dynamic>? _userData;
+  final _driverRepository = DriverRepository();
+  final _authRepository = AuthRepository();
   List<DeliveryOrder> _tasks = [];
   bool _isLoading = false;
 
   @override
   void initState() {
     super.initState();
-    _loadUserData();
     _fetchTasks();
   }
 
-  Future<void> _loadUserData() async {
-    final userData = await _apiClient.getUserData();
-    setState(() {
-      _userData = userData;
-    });
-  }
-
   Future<void> _fetchTasks() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
-    try {
-      final response = await _apiClient.get('/driver/orders');
+    final result = await _driverRepository.getDriverTasks();
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        setState(() {
-          _tasks = data.map((json) => DeliveryOrder.fromJson(json)).toList();
+    if (!mounted) return;
+
+    result
+        .onSuccess((tasks) {
+          setState(() {
+            _tasks = tasks;
+            _isLoading = false;
+          });
+        })
+        .onFailure((failure) {
+          setState(() {
+            _isLoading = false;
+          });
         });
-      } else {
-        _showError('Gagal memuat tugas');
-      }
-    } catch (e) {
-      _showError('Terjadi kesalahan: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
-  }
-
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
-      );
-    }
   }
 
   Future<void> _handleLogout() async {
@@ -76,11 +62,11 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
         content: const Text('Apakah Anda yakin ingin keluar?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Batal'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout'),
           ),
         ],
@@ -88,9 +74,9 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
     );
 
     if (confirm == true) {
-      await _apiClient.clearAllData();
+      await _authRepository.logout();
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      context.go('/login');
     }
   }
 
@@ -165,15 +151,7 @@ class _DriverTasksScreenState extends State<DriverTasksScreen> {
             child: Column(
               crossAxisAlignment: CrossAxisAlignment.start,
               children: [
-                Text(
-                  _userData?['name'] ?? 'Driver',
-                  style: AppTextStyles.titleLarge,
-                ),
-                const SizedBox(height: AppSpacings.xs),
-                Text(
-                  _userData?['email'] ?? 'driver@example.com',
-                  style: AppTextStyles.bodyMedium,
-                ),
+                Text('Driver', style: AppTextStyles.titleLarge),
                 const SizedBox(height: AppSpacings.sm),
                 Container(
                   padding: const EdgeInsets.symmetric(

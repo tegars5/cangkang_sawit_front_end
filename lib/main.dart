@@ -1,5 +1,8 @@
 import 'package:flutter/material.dart';
 import 'package:shared_preferences/shared_preferences.dart';
+import 'package:go_router/go_router.dart';
+import 'package:intl/intl.dart';
+import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme/app_theme.dart';
 import 'services/api_client.dart';
 import 'screens/auth/login_screen.dart';
@@ -11,6 +14,10 @@ void main() async {
   // Pastikan Flutter binding sudah diinisialisasi
   WidgetsFlutterBinding.ensureInitialized();
 
+  // Initialize Indonesian locale for date formatting
+  await initializeDateFormatting('id_ID', null);
+  Intl.defaultLocale = 'id_ID';
+
   // Inisialisasi SharedPreferences
   final prefs = await SharedPreferences.getInstance();
 
@@ -20,62 +27,67 @@ void main() async {
 class MyApp extends StatelessWidget {
   final SharedPreferences prefs;
 
-  const MyApp({super.key, required this.prefs});
+  MyApp({super.key, required this.prefs});
 
   @override
   Widget build(BuildContext context) {
-    return MaterialApp(
+    return MaterialApp.router(
       title: 'Cangkang Sawit',
       debugShowCheckedModeBanner: false,
       theme: AppTheme.lightTheme,
-
-      // Routes
-      routes: {
-        '/login': (context) => const LoginScreen(),
-        '/mitra/orders': (context) => const MitraOrdersScreen(),
-        '/admin/orders': (context) => const AdminOrdersScreen(),
-        '/driver/tasks': (context) => const DriverTasksScreen(),
-      },
-
-      // Initial route berdasarkan token
-      home: FutureBuilder<Widget>(
-        future: _determineInitialScreen(),
-        builder: (context, snapshot) {
-          if (snapshot.connectionState == ConnectionState.waiting) {
-            return const Scaffold(
-              body: Center(child: CircularProgressIndicator()),
-            );
-          }
-
-          return snapshot.data ?? const LoginScreen();
-        },
-      ),
+      routerConfig: _router,
     );
   }
 
-  // Tentukan screen awal berdasarkan token dan role
-  Future<Widget> _determineInitialScreen() async {
-    final apiClient = ApiClient();
-    final token = await apiClient.getToken();
+  // GoRouter configuration
+  late final GoRouter _router = GoRouter(
+    initialLocation: '/login',
+    redirect: (context, state) async {
+      final apiClient = ApiClient();
+      final token = await apiClient.getToken();
+      final role = await apiClient.getRole();
 
-    // Jika tidak ada token, tampilkan login screen
-    if (token == null || token.isEmpty) {
-      return const LoginScreen();
-    }
+      final isLoginRoute = state.matchedLocation == '/login';
+      final hasToken = token != null && token.isNotEmpty;
 
-    // Jika ada token, cek role dan arahkan ke screen yang sesuai
-    final role = await apiClient.getRole();
+      // If no token and not on login page, redirect to login
+      if (!hasToken && !isLoginRoute) {
+        return '/login';
+      }
 
-    switch (role) {
-      case 'mitra':
-        return const MitraOrdersScreen();
-      case 'admin':
-        return const AdminOrdersScreen();
-      case 'driver':
-        return const DriverTasksScreen();
-      default:
-        // Jika role tidak dikenali, arahkan ke login
-        return const LoginScreen();
-    }
-  }
+      // If has token and on login page, redirect based on role
+      if (hasToken && isLoginRoute) {
+        switch (role) {
+          case 'mitra':
+            return '/mitra/orders';
+          case 'admin':
+            return '/admin/orders';
+          case 'driver':
+            return '/driver/tasks';
+          default:
+            // Invalid role, clear token and stay on login
+            await apiClient.clearAllData();
+            return '/login';
+        }
+      }
+
+      // No redirect needed
+      return null;
+    },
+    routes: [
+      GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
+      GoRoute(
+        path: '/mitra/orders',
+        builder: (context, state) => const MitraOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/admin/orders',
+        builder: (context, state) => const AdminOrdersScreen(),
+      ),
+      GoRoute(
+        path: '/driver/tasks',
+        builder: (context, state) => const DriverTasksScreen(),
+      ),
+    ],
+  );
 }

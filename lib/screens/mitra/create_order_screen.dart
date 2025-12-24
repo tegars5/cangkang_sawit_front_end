@@ -1,6 +1,6 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
+import 'dart:convert'; // Added this import for jsonDecode
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
@@ -26,7 +26,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   // Form controllers
   final _destinationController = TextEditingController();
   final _weightController = TextEditingController();
-  final _pickupLocationController = TextEditingController();
   final _notesController = TextEditingController();
 
   // State
@@ -47,7 +46,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   void dispose() {
     _destinationController.dispose();
     _weightController.dispose();
-    _pickupLocationController.dispose();
     _notesController.dispose();
     super.dispose();
   }
@@ -157,11 +155,13 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
     try {
       final orderData = {
-        'product_id': _selectedProduct!.id,
-        'destination': _destinationController.text,
-        'total_weight': double.parse(_weightController.text),
-        'pickup_location': _pickupLocationController.text,
-        'delivery_date': DateFormat('yyyy-MM-dd').format(_selectedDate!),
+        'destination_address': _destinationController.text,
+        'items': [
+          {
+            'product_id': _selectedProduct!.id,
+            'quantity': int.parse(_weightController.text),
+          },
+        ],
         'notes': _notesController.text.isNotEmpty
             ? _notesController.text
             : null,
@@ -236,8 +236,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
                     const SizedBox(height: AppSpacings.itemSpacing),
                     _buildWeightField(),
                     const SizedBox(height: AppSpacings.itemSpacing),
-                    _buildPickupLocationField(),
-                    const SizedBox(height: AppSpacings.itemSpacing),
                     _buildDatePicker(),
                     const SizedBox(height: AppSpacings.itemSpacing),
                     _buildNotesField(),
@@ -282,7 +280,7 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
           ),
           const SizedBox(height: AppSpacings.sm),
           DropdownButtonFormField<Product>(
-            value: _selectedProduct,
+            initialValue: _selectedProduct,
             decoration: InputDecoration(
               hintText: 'Pilih produk',
               border: OutlineInputBorder(borderRadius: AppRadius.smallRadius),
@@ -362,22 +360,6 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
         final weight = double.tryParse(value);
         if (weight == null || weight <= 0) {
           return 'Berat harus berupa angka positif';
-        }
-        return null;
-      },
-    );
-  }
-
-  Widget _buildPickupLocationField() {
-    return AppTextField(
-      controller: _pickupLocationController,
-      label: 'Lokasi Pickup',
-      hintText: 'Masukkan alamat lokasi pickup',
-      prefixIcon: Icons.warehouse_outlined,
-      maxLines: 2,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Lokasi pickup harus diisi';
         }
         return null;
       },

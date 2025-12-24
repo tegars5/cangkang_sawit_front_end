@@ -1,14 +1,16 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
+import '../../core/constants/app_strings.dart';
+import '../../core/utils/validators.dart';
+import '../../core/utils/result.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/icon_container.dart';
-import '../../services/api_client.dart';
-import '../mitra/orders_screen.dart';
+import '../../repositories/auth_repository.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -21,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _apiClient = ApiClient();
+  final _authRepository = AuthRepository();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -41,55 +43,50 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    try {
-      // Panggil API login
-      final response = await _apiClient.post('/login', {
-        'email': _emailController.text.trim(),
-        'password': _passwordController.text,
-      });
+    final result = await _authRepository.login(
+      _emailController.text.trim(),
+      _passwordController.text,
+    );
 
-      if (response.statusCode == 200) {
-        // Parse response
-        final data = jsonDecode(response.body);
+    if (!mounted) return;
 
-        // Ambil token dan user data
-        final token = data['token'] as String;
-        final user = data['user'] as Map<String, dynamic>;
-        final role = user['role'] as String;
+    result
+        .onSuccess((data) async {
+          // Extract token and user data
+          final token = data['token'] as String;
+          final user = data['user'] as Map<String, dynamic>;
+          final role = user['role'] as String;
 
-        // Simpan token dan data user
-        await _apiClient.setToken(token);
-        await _apiClient.setRole(role);
-        await _apiClient.setUserData(user);
+          // Save authentication data
+          await _authRepository.saveToken(token);
+          await _authRepository.saveRole(role);
+          await _authRepository.saveUserData(user);
 
-        if (!mounted) return;
+          if (!mounted) return;
 
-        // Navigate berdasarkan role
-        if (role == 'mitra') {
-          Navigator.of(context).pushReplacement(
-            MaterialPageRoute(builder: (context) => const MitraOrdersScreen()),
-          );
-        } else if (role == 'admin') {
-          Navigator.of(context).pushReplacementNamed('/admin/orders');
-        } else if (role == 'driver') {
-          Navigator.of(context).pushReplacementNamed('/driver/tasks');
-        } else {
-          _showErrorDialog('Role tidak dikenali: $role');
-        }
-      } else {
-        // Login gagal
-        final errorData = jsonDecode(response.body);
-        final errorMessage = errorData['message'] ?? 'Login gagal';
-        _showErrorDialog(errorMessage);
-      }
-    } catch (e) {
-      _showErrorDialog('Terjadi kesalahan: $e');
-    } finally {
-      if (mounted) {
-        setState(() {
-          _isLoading = false;
+          // Navigate based on role
+          switch (role) {
+            case 'mitra':
+              context.go('/mitra/orders');
+              break;
+            case 'admin':
+              context.go('/admin/orders');
+              break;
+            case 'driver':
+              context.go('/driver/tasks');
+              break;
+            default:
+              _showErrorDialog('Role tidak dikenali: $role');
+          }
+        })
+        .onFailure((failure) {
+          _showErrorDialog(failure.message);
         });
-      }
+
+    if (mounted) {
+      setState(() {
+        _isLoading = false;
+      });
     }
   }
 
@@ -97,7 +94,7 @@ class _LoginScreenState extends State<LoginScreen> {
     showDialog(
       context: context,
       builder: (context) => AlertDialog(
-        title: const Text('Login Gagal'),
+        title: Text(AppStrings.loginFailed),
         content: Text(message),
         actions: [
           TextButton(
@@ -168,24 +165,16 @@ class _LoginScreenState extends State<LoginScreen> {
             const SizedBox(height: AppSpacings.sectionSpacing),
             AppTextField(
               controller: _emailController,
-              labelText: 'Email',
+              labelText: AppStrings.email,
               hintText: 'nama@email.com',
               prefixIcon: Icons.email_outlined,
               keyboardType: TextInputType.emailAddress,
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Email tidak boleh kosong';
-                }
-                if (!value.contains('@')) {
-                  return 'Email tidak valid';
-                }
-                return null;
-              },
+              validator: Validators.email,
             ),
             const SizedBox(height: AppSpacings.itemSpacing + 4),
             AppTextField(
               controller: _passwordController,
-              labelText: 'Password',
+              labelText: AppStrings.password,
               hintText: 'Masukkan password',
               prefixIcon: Icons.lock_outlined,
               obscureText: _obscurePassword,
@@ -202,15 +191,7 @@ class _LoginScreenState extends State<LoginScreen> {
                   });
                 },
               ),
-              validator: (value) {
-                if (value == null || value.isEmpty) {
-                  return 'Password tidak boleh kosong';
-                }
-                if (value.length < 6) {
-                  return 'Password minimal 6 karakter';
-                }
-                return null;
-              },
+              validator: Validators.password,
             ),
             const SizedBox(height: AppSpacings.xl),
             PrimaryButton(

@@ -1,11 +1,13 @@
-import 'dart:convert';
 import 'package:flutter/material.dart';
+import 'package:go_router/go_router.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
+import '../../core/utils/result.dart';
 import '../../core/widgets/stat_card.dart';
 import '../../core/widgets/order_list_item.dart';
-import '../../services/api_client.dart';
+import '../../repositories/order_repository.dart';
+import '../../repositories/auth_repository.dart';
 import '../../models/order.dart';
 import 'assign_driver_dialog.dart';
 
@@ -17,7 +19,8 @@ class AdminOrdersScreen extends StatefulWidget {
 }
 
 class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
-  final _apiClient = ApiClient();
+  final _orderRepository = OrderRepository();
+  final _authRepository = AuthRepository();
   List<Order> _orders = [];
   bool _isLoading = false;
   int _totalOrders = 0;
@@ -31,39 +34,33 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   }
 
   Future<void> _fetchOrders() async {
-    setState(() => _isLoading = true);
+    setState(() {
+      _isLoading = true;
+    });
 
-    try {
-      final response = await _apiClient.get('/orders');
+    final result = await _orderRepository.getOrders();
 
-      if (response.statusCode == 200) {
-        final List<dynamic> data = jsonDecode(response.body);
-        final orders = data.map((json) => Order.fromJson(json)).toList();
+    if (!mounted) return;
 
-        setState(() {
-          _orders = orders;
-          _totalOrders = orders.length;
-          _onDelivery = orders.where((o) => o.status == 'on_delivery').length;
-          _completed = orders.where((o) => o.status == 'completed').length;
+    result
+        .onSuccess((orders) {
+          setState(() {
+            _orders = orders;
+            _isLoading = false;
+            _calculateStats();
+          });
+        })
+        .onFailure((failure) {
+          setState(() {
+            _isLoading = false;
+          });
         });
-      } else {
-        _showError('Gagal memuat pesanan');
-      }
-    } catch (e) {
-      _showError('Terjadi kesalahan: $e');
-    } finally {
-      if (mounted) {
-        setState(() => _isLoading = false);
-      }
-    }
   }
 
-  void _showError(String message) {
-    if (mounted) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(message), backgroundColor: AppColors.error),
-      );
-    }
+  void _calculateStats() {
+    _totalOrders = _orders.length;
+    _onDelivery = _orders.where((o) => o.status == 'on_delivery').length;
+    _completed = _orders.where((o) => o.status == 'completed').length;
   }
 
   Future<void> _handleLogout() async {
@@ -74,11 +71,11 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
         content: const Text('Apakah Anda yakin ingin keluar?'),
         actions: [
           TextButton(
-            onPressed: () => Navigator.of(context).pop(false),
+            onPressed: () => Navigator.pop(context, false),
             child: const Text('Batal'),
           ),
           TextButton(
-            onPressed: () => Navigator.of(context).pop(true),
+            onPressed: () => Navigator.pop(context, true),
             child: const Text('Logout'),
           ),
         ],
@@ -86,9 +83,9 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
     );
 
     if (confirm == true) {
-      await _apiClient.clearAllData();
+      await _authRepository.logout();
       if (!mounted) return;
-      Navigator.of(context).pushNamedAndRemoveUntil('/login', (route) => false);
+      context.go('/login');
     }
   }
 

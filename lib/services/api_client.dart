@@ -4,47 +4,45 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
   // Base URL untuk backend Laravel
-  // Ganti dengan IP komputer Anda saat testing di HP fisik
-  // Contoh: http://192.168.1.100:8000/api
-  static const String baseUrl = 'http://127.0.0.1:8000/api';
+  static const String baseUrl = 'http://192.168.1.2:8000/api';
 
-  // Simpan token ke SharedPreferences
+  // ========== Token & User Data Management ==========
+
   Future<void> setToken(String token) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('token', token);
   }
 
-  // Ambil token dari SharedPreferences
   Future<String?> getToken() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('token');
   }
 
-  // Hapus token (untuk logout)
   Future<void> clearToken() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.remove('token');
   }
 
-  // Simpan role user
   Future<void> setRole(String role) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('role', role);
   }
 
-  // Ambil role user
   Future<String?> getRole() async {
     final prefs = await SharedPreferences.getInstance();
     return prefs.getString('role');
   }
 
-  // Simpan data user
+  Future<void> clearRole() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('role');
+  }
+
   Future<void> setUserData(Map<String, dynamic> userData) async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.setString('user_data', jsonEncode(userData));
   }
 
-  // Ambil data user
   Future<Map<String, dynamic>?> getUserData() async {
     final prefs = await SharedPreferences.getInstance();
     final userDataString = prefs.getString('user_data');
@@ -54,149 +52,114 @@ class ApiClient {
     return null;
   }
 
-  // Clear semua data (untuk logout)
+  Future<void> clearUserData() async {
+    final prefs = await SharedPreferences.getInstance();
+    await prefs.remove('user_data');
+  }
+
   Future<void> clearAllData() async {
     final prefs = await SharedPreferences.getInstance();
     await prefs.clear();
   }
 
-  // Method untuk GET request
-  Future<http.Response> get(String path) async {
-    final token = await getToken();
-    final uri = Uri.parse('$baseUrl$path');
+  // ========== Private Helper Methods ==========
 
-    final headers = {
+  /// Get headers with authentication token
+  Future<Map<String, String>> _getHeaders() async {
+    final token = await getToken();
+    return {
       'Accept': 'application/json',
       'Content-Type': 'application/json',
+      if (token != null && token.isNotEmpty) 'Authorization': 'Bearer $token',
     };
+  }
 
-    // Tambahkan Authorization header jika token ada
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
+  /// Handle GET request
+  Future<http.Response> _handleGet(String endpoint) async {
     try {
-      final response = await http.get(uri, headers: headers);
-      return response;
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl$endpoint');
+      return await http.get(uri, headers: headers);
     } catch (e) {
-      throw Exception('Gagal melakukan GET request: $e');
+      throw Exception('Network error: $e');
     }
   }
 
-  // Method untuk POST request
-  Future<http.Response> post(String path, Map<String, dynamic> body) async {
-    final token = await getToken();
-    final uri = Uri.parse('$baseUrl$path');
-
-    final headers = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    };
-
-    // Tambahkan Authorization header jika token ada
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
+  /// Handle POST request
+  Future<http.Response> _handlePost(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     try {
-      final response = await http.post(
-        uri,
-        headers: headers,
-        body: jsonEncode(body),
-      );
-      return response;
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl$endpoint');
+      return await http.post(uri, headers: headers, body: jsonEncode(body));
     } catch (e) {
-      throw Exception('Gagal melakukan POST request: $e');
+      throw Exception('Network error: $e');
     }
   }
 
-  // Method untuk PUT request
-  Future<http.Response> put(String path, Map<String, dynamic> body) async {
-    final token = await getToken();
-    final uri = Uri.parse('$baseUrl$path');
-
-    final headers = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    };
-
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
+  /// Handle PUT request
+  Future<http.Response> _handlePut(
+    String endpoint,
+    Map<String, dynamic> body,
+  ) async {
     try {
-      final response = await http.put(
-        uri,
-        headers: headers,
-        body: jsonEncode(body),
-      );
-      return response;
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl$endpoint');
+      return await http.put(uri, headers: headers, body: jsonEncode(body));
     } catch (e) {
-      throw Exception('Gagal melakukan PUT request: $e');
+      throw Exception('Network error: $e');
     }
   }
 
-  // Method untuk DELETE request
-  Future<http.Response> delete(String path) async {
-    final token = await getToken();
-    final uri = Uri.parse('$baseUrl$path');
-
-    final headers = {
-      'Accept': 'application/json',
-      'Content-Type': 'application/json',
-    };
-
-    if (token != null && token.isNotEmpty) {
-      headers['Authorization'] = 'Bearer $token';
-    }
-
+  /// Handle DELETE request
+  Future<http.Response> _handleDelete(String endpoint) async {
     try {
-      final response = await http.delete(uri, headers: headers);
-      return response;
+      final headers = await _getHeaders();
+      final uri = Uri.parse('$baseUrl$endpoint');
+      return await http.delete(uri, headers: headers);
     } catch (e) {
-      throw Exception('Gagal melakukan DELETE request: $e');
+      throw Exception('Network error: $e');
     }
   }
 
-  // Method untuk mendapatkan jarak order (gudang ke tujuan)
-  Future<http.Response> getOrderDistance(int orderId) async {
-    return await get('/orders/$orderId/distance');
-  }
+  // ========== Public API Methods (Generic) ==========
 
-  // Method untuk mendapatkan jarak driver (driver ke tujuan)
-  Future<http.Response> getDriverDistance(int deliveryOrderId) async {
-    return await get('/driver/delivery-orders/$deliveryOrderId/distance');
-  }
+  Future<http.Response> get(String path) => _handleGet(path);
+  Future<http.Response> post(String path, Map<String, dynamic> body) =>
+      _handlePost(path, body);
+  Future<http.Response> put(String path, Map<String, dynamic> body) =>
+      _handlePut(path, body);
+  Future<http.Response> delete(String path) => _handleDelete(path);
 
-  // Method untuk mendapatkan list drivers (admin)
-  Future<http.Response> getDrivers() async {
-    return await get('/admin/drivers');
-  }
+  // ========== Specific API Endpoints ==========
 
-  // Method untuk assign driver ke order (admin)
-  Future<http.Response> assignDriver(int orderId, int driverId) async {
-    return await post('/admin/orders/$orderId/assign-driver', {
-      'driver_id': driverId,
-    });
-  }
+  // Distance
+  Future<http.Response> getOrderDistance(int orderId) =>
+      _handleGet('/orders/$orderId/distance');
 
-  // Method untuk mendapatkan list products
-  Future<http.Response> getProducts() async {
-    return await get('/products');
-  }
+  Future<http.Response> getDriverDistance(int deliveryOrderId) =>
+      _handleGet('/driver/delivery-orders/$deliveryOrderId/distance');
 
-  // Method untuk create order baru (mitra)
-  Future<http.Response> createOrder(Map<String, dynamic> orderData) async {
-    return await post('/orders', orderData);
-  }
+  // Drivers
+  Future<http.Response> getDrivers() => _handleGet('/admin/drivers');
 
-  // Method untuk pay order (mitra)
-  Future<http.Response> payOrder(int orderId) async {
-    return await post('/orders/$orderId/pay', {});
-  }
+  Future<http.Response> assignDriver(int orderId, int driverId) => _handlePost(
+    '/admin/orders/$orderId/assign-driver',
+    {'driver_id': driverId},
+  );
 
-  // Method untuk cancel order (mitra)
-  Future<http.Response> cancelOrder(int orderId) async {
-    return await post('/orders/$orderId/cancel', {});
-  }
+  // Products
+  Future<http.Response> getProducts() => _handleGet('/products');
+
+  // Orders
+  Future<http.Response> createOrder(Map<String, dynamic> orderData) =>
+      _handlePost('/orders', orderData);
+
+  Future<http.Response> payOrder(int orderId) =>
+      _handlePost('/orders/$orderId/pay', {});
+
+  Future<http.Response> cancelOrder(int orderId) =>
+      _handlePost('/orders/$orderId/cancel', {});
 }
