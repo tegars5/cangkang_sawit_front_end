@@ -243,42 +243,104 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   Widget _buildStatusCard() {
     final statusColor = _getStatusColor(widget.order.status);
     final statusIcon = _getStatusIcon(widget.order.status);
+    final paymentStatusColor = _getPaymentStatusColor(
+      widget.order.paymentStatus,
+    );
 
-    return Container(
-      padding: const EdgeInsets.all(AppSpacings.md),
-      decoration: BoxDecoration(
-        color: statusColor.withValues(alpha: 0.1),
-        borderRadius: AppRadius.mediumRadius,
-        border: Border.all(color: statusColor.withValues(alpha: 0.3)),
-      ),
-      child: Row(
-        children: [
-          Icon(statusIcon, color: statusColor, size: 32),
-          const SizedBox(width: AppSpacings.md),
-          Expanded(
-            child: Column(
-              crossAxisAlignment: CrossAxisAlignment.start,
-              children: [
-                Text(
-                  'Status Pesanan',
-                  style: AppTextStyles.bodySmall.copyWith(
-                    color: AppColors.textSecondary,
-                  ),
+    return Column(
+      children: [
+        Container(
+          padding: const EdgeInsets.all(AppSpacings.md),
+          decoration: BoxDecoration(
+            color: statusColor.withValues(alpha: 0.1),
+            borderRadius: AppRadius.mediumRadius,
+            border: Border.all(color: statusColor.withValues(alpha: 0.3)),
+          ),
+          child: Row(
+            children: [
+              Icon(statusIcon, color: statusColor, size: 32),
+              const SizedBox(width: AppSpacings.md),
+              Expanded(
+                child: Column(
+                  crossAxisAlignment: CrossAxisAlignment.start,
+                  children: [
+                    Text(
+                      'Status Pesanan',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.textSecondary,
+                      ),
+                    ),
+                    const SizedBox(height: AppSpacings.xs),
+                    Text(
+                      widget.order.statusDisplay,
+                      style: AppTextStyles.titleLarge.copyWith(
+                        color: statusColor,
+                        fontWeight: FontWeight.bold,
+                      ),
+                    ),
+                  ],
                 ),
-                const SizedBox(height: AppSpacings.xs),
-                Text(
-                  widget.order.statusDisplay,
-                  style: AppTextStyles.titleLarge.copyWith(
-                    color: statusColor,
-                    fontWeight: FontWeight.bold,
+              ),
+            ],
+          ),
+        ),
+        if (widget.order.paymentStatus != null) ...[
+          const SizedBox(height: AppSpacings.sm),
+          Container(
+            padding: const EdgeInsets.all(AppSpacings.md),
+            decoration: BoxDecoration(
+              color: paymentStatusColor.withValues(alpha: 0.1),
+              borderRadius: AppRadius.mediumRadius,
+              border: Border.all(
+                color: paymentStatusColor.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              children: [
+                Icon(Icons.payment, color: paymentStatusColor, size: 32),
+                const SizedBox(width: AppSpacings.md),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Status Pembayaran',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textSecondary,
+                        ),
+                      ),
+                      const SizedBox(height: AppSpacings.xs),
+                      Text(
+                        widget.order.paymentStatusDisplay,
+                        style: AppTextStyles.titleLarge.copyWith(
+                          color: paymentStatusColor,
+                          fontWeight: FontWeight.bold,
+                        ),
+                      ),
+                    ],
                   ),
                 ),
               ],
             ),
           ),
         ],
-      ),
+      ],
     );
+  }
+
+  Color _getPaymentStatusColor(String? status) {
+    switch (status) {
+      case 'paid':
+        return Colors.green[700]!;
+      case 'pending':
+      case 'unpaid':
+        return Colors.orange[700]!;
+      case 'failed':
+      case 'expired':
+        return Colors.red[700]!;
+      default:
+        return AppColors.textSecondary;
+    }
   }
 
   Widget _buildOrderDetailsCard() {
@@ -288,6 +350,34 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
         children: [
           Text('Detail Pesanan', style: AppTextStyles.titleLarge),
           const SizedBox(height: AppSpacings.md),
+          if (widget.order.totalPrice != null) ...[
+            Container(
+              padding: const EdgeInsets.all(AppSpacings.md),
+              decoration: BoxDecoration(
+                color: AppColors.primaryLight,
+                borderRadius: AppRadius.smallRadius,
+              ),
+              child: Row(
+                mainAxisAlignment: MainAxisAlignment.spaceBetween,
+                children: [
+                  Text(
+                    'Total Harga',
+                    style: AppTextStyles.titleMedium.copyWith(
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                  Text(
+                    widget.order.formattedTotalPrice,
+                    style: AppTextStyles.titleLarge.copyWith(
+                      color: AppColors.primary,
+                      fontWeight: FontWeight.bold,
+                    ),
+                  ),
+                ],
+              ),
+            ),
+            const SizedBox(height: AppSpacings.md),
+          ],
           _buildDetailRow(
             icon: Icons.location_on_outlined,
             label: 'Tujuan',
@@ -305,6 +395,14 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               icon: Icons.business_outlined,
               label: 'Mitra',
               value: widget.order.mitraName!,
+            ),
+          ],
+          if (widget.order.paymentMethod != null) ...[
+            const SizedBox(height: AppSpacings.sm),
+            _buildDetailRow(
+              icon: Icons.credit_card_outlined,
+              label: 'Metode Pembayaran',
+              value: widget.order.paymentMethod!.toUpperCase(),
             ),
           ],
         ],
@@ -471,14 +569,24 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
   }
 
   Widget _buildActionButtons() {
+    final canPay =
+        widget.order.status == 'pending' &&
+        (widget.order.paymentStatus == 'unpaid' ||
+            widget.order.paymentStatus == 'pending' ||
+            widget.order.paymentStatus == 'failed' ||
+            widget.order.paymentStatus == 'expired');
+
     return Column(
       crossAxisAlignment: CrossAxisAlignment.stretch,
       children: [
         // Payment button for pending orders that haven't been paid
-        if (widget.order.status == 'pending' &&
-            widget.order.paymentStatus != 'paid') ...[
+        if (canPay) ...[
           PrimaryButton(
-            text: 'Bayar Sekarang',
+            text:
+                widget.order.paymentStatus == 'failed' ||
+                    widget.order.paymentStatus == 'expired'
+                ? 'Bayar Ulang'
+                : 'Bayar Sekarang',
             icon: Icons.payment,
             onPressed: _handlePayment,
           ),
@@ -499,10 +607,10 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
               );
             },
           ),
-        // Cancel button for pending orders
-        if (widget.order.status == 'pending') ...[
-          if (widget.order.paymentStatus == 'paid')
-            const SizedBox(height: AppSpacings.sm),
+        // Cancel button for pending orders (only if not paid)
+        if (widget.order.status == 'pending' &&
+            widget.order.paymentStatus != 'paid') ...[
+          if (canPay) const SizedBox(height: AppSpacings.sm),
           OutlinedButton.icon(
             onPressed: _handleCancelOrder,
             icon: const Icon(Icons.cancel_outlined),

@@ -31,14 +31,11 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
   final _orderRepository = OrderRepository();
   bool _isLoading = false;
 
-  // Stats
-  int _totalOrders = 0;
-  int _pendingOrders = 0;
-  int _onDeliveryOrders = 0;
-  int _completedOrders = 0;
-  // Placeholders
-  int _activePartners = 54; // Placeholder
-  int _inventoryTons = 1200; // Placeholder
+  // Stats from backend
+  int _newOrders = 0;
+  int _pendingShipments = 0;
+  int _activePartners = 0;
+  int _inventoryTons = 0;
 
   String _lastUpdated = "--:--";
 
@@ -60,16 +57,10 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
     result
         .onSuccess((data) {
           setState(() {
-            _totalOrders = data['total_orders'] ?? 0;
-            _onDeliveryOrders = data['in_delivery'] ?? 0;
-            _completedOrders = data['completed'] ?? 0;
-            _pendingOrders =
-                data['pending'] ??
-                0; // Ensure Repository returns this or calculate
-            // If repository doesn't return 'pending', we might need to fetch all orders to count,
-            // but let's assume getAdminDashboardSummary returns it or we update repo.
-            // Looking at repo code: it returns data from '_apiClient.getAdminDashboardSummary()'.
-            // I will assume the backend provides it, or if not I defaults to 0.
+            _newOrders = data['new_orders'] ?? 0;
+            _pendingShipments = data['pending_shipments'] ?? 0;
+            _activePartners = data['active_partners'] ?? 0;
+            _inventoryTons = data['inventory_tons'] ?? 0;
 
             final now = DateTime.now();
             _lastUpdated =
@@ -80,8 +71,15 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
         .onFailure((e) {
           setState(() {
             _isLoading = false;
-            // Optionally show snackbar
           });
+          if (mounted) {
+            ScaffoldMessenger.of(context).showSnackBar(
+              SnackBar(
+                content: Text('Gagal memuat data: ${e.message}'),
+                backgroundColor: Colors.red,
+              ),
+            );
+          }
         });
   }
 
@@ -143,20 +141,17 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                       children: [
                         DashboardStatCard(
                           title: 'New Orders',
-                          value: '$_pendingOrders',
+                          value: '$_newOrders',
                           icon: Icons.shopping_bag_outlined,
                           iconColor: AppColors.primary,
                           onTap: () {
-                            // Navigate to Orders with 'pending' filter
-                            // Since we are using tabs, we can use a provider/callback to set filter
-                            // But simpler: just go to tab 1 (Orders)
-                            // Ideally we pass the filter. For now just switch tab.
+                            // Navigate to Orders tab (index 1)
                             widget.onTabSelected(1);
                           },
                         ),
                         DashboardStatCard(
                           title: 'Pending Shipments',
-                          value: '$_onDeliveryOrders', // or pending shipments
+                          value: '$_pendingShipments',
                           icon: Icons.local_shipping_outlined,
                           iconColor: Colors.orange,
                           onTap: () => widget.onTabSelected(1),
@@ -212,9 +207,9 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
 
                     const SizedBox(height: AppSpacings.xl),
 
-                    // Order Status
+                    // Order Status Summary
                     Text(
-                      'Order Status',
+                      'Ringkasan Status',
                       style: AppTextStyles.titleLarge.copyWith(
                         fontWeight: FontWeight.bold,
                       ),
@@ -229,69 +224,34 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                       ),
                       child: Column(
                         children: [
-                          Stack(
-                            alignment: Alignment.center,
-                            children: [
-                              SizedBox(
-                                width: 150,
-                                height: 150,
-                                child: CircularProgressIndicator(
-                                  value: _totalOrders > 0
-                                      ? (_completedOrders / _totalOrders)
-                                      : 0,
-                                  strokeWidth: 12,
-                                  backgroundColor: const Color(0xFFEEEEEE),
-                                  valueColor:
-                                      const AlwaysStoppedAnimation<Color>(
-                                        Color(0xFF0D1B2A),
-                                      ), // Navy
-                                ),
-                              ),
-                              Column(
-                                mainAxisSize: MainAxisSize.min,
-                                children: [
-                                  Text(
-                                    '$_totalOrders',
-                                    style: AppTextStyles.displayMedium.copyWith(
-                                      fontWeight: FontWeight.bold,
-                                    ),
-                                  ),
-                                  Text(
-                                    'Total Orders',
-                                    style: AppTextStyles.bodySmall.copyWith(
-                                      color: AppColors.textSecondary,
-                                    ),
-                                  ),
-                                ],
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 24),
-                          // Legend
                           Row(
                             mainAxisAlignment: MainAxisAlignment.spaceAround,
                             children: [
-                              _StatusLegend(
-                                color: AppColors.success,
-                                label: 'Completed',
+                              _StatusSummaryItem(
+                                color: AppColors.primary,
+                                label: 'Pesanan Baru',
+                                value: '$_newOrders',
                               ),
-                              _StatusLegend(
-                                color: const Color(0xFF0D1B2A),
-                                label: 'In Transit',
-                              ),
-                            ],
-                          ),
-                          const SizedBox(height: 12),
-                          Row(
-                            mainAxisAlignment: MainAxisAlignment.spaceAround,
-                            children: [
-                              _StatusLegend(
+                              _StatusSummaryItem(
                                 color: Colors.orange,
-                                label: 'Processing',
+                                label: 'Dalam Pengiriman',
+                                value: '$_pendingShipments',
                               ),
-                              _StatusLegend(
-                                color: Colors.grey,
-                                label: 'Awaiting',
+                            ],
+                          ),
+                          const SizedBox(height: 16),
+                          Row(
+                            mainAxisAlignment: MainAxisAlignment.spaceAround,
+                            children: [
+                              _StatusSummaryItem(
+                                color: Colors.blue,
+                                label: 'Mitra Aktif',
+                                value: '$_activePartners',
+                              ),
+                              _StatusSummaryItem(
+                                color: Colors.purple,
+                                label: 'Stok (Ton)',
+                                value: '$_inventoryTons',
                               ),
                             ],
                           ),
@@ -339,22 +299,36 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
   }
 }
 
-class _StatusLegend extends StatelessWidget {
+class _StatusSummaryItem extends StatelessWidget {
   final Color color;
   final String label;
-  const _StatusLegend({required this.color, required this.label});
+  final String value;
+
+  const _StatusSummaryItem({
+    required this.color,
+    required this.label,
+    required this.value,
+  });
 
   @override
   Widget build(BuildContext context) {
-    return Row(
+    return Column(
       children: [
-        Container(
-          width: 8,
-          height: 8,
-          decoration: BoxDecoration(color: color, shape: BoxShape.circle),
+        Text(
+          value,
+          style: AppTextStyles.displaySmall.copyWith(
+            color: color,
+            fontWeight: FontWeight.bold,
+          ),
         ),
-        const SizedBox(width: 8),
-        Text(label, style: const TextStyle(fontWeight: FontWeight.w500)),
+        const SizedBox(height: 4),
+        Text(
+          label,
+          style: AppTextStyles.bodySmall.copyWith(
+            color: AppColors.textSecondary,
+          ),
+          textAlign: TextAlign.center,
+        ),
       ],
     );
   }

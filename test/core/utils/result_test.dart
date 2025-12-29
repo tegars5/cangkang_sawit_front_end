@@ -17,12 +17,12 @@ void main() {
 
     group('Failure', () {
       test('should create Failure with message', () {
-        const result = Failure<int>('Error message');
+        const result = Failure<int>(message: 'Error message');
         expect(result.message, 'Error message');
       });
 
       test('should be of type Failure', () {
-        const result = Failure<String>('Error');
+        const result = Failure<String>(message: 'Error');
         expect(result, isA<Failure<String>>());
       });
     });
@@ -43,7 +43,7 @@ void main() {
       });
 
       test('should not execute callback for Failure', () {
-        const result = Failure<int>('Error');
+        const result = Failure<int>(message: 'Error');
         var executed = false;
 
         result.onSuccess((value) {
@@ -62,7 +62,7 @@ void main() {
 
     group('onFailure', () {
       test('should execute callback for Failure', () {
-        const result = Failure<int>('Error message');
+        const result = Failure<int>(message: 'Error message');
         var executed = false;
         var receivedMessage = '';
 
@@ -87,7 +87,7 @@ void main() {
       });
 
       test('should return the same Result for chaining', () {
-        const result = Failure<int>('Error');
+        const result = Failure<int>(message: 'Error');
         final returned = result.onFailure((failure) {});
         expect(returned, result);
       });
@@ -112,7 +112,7 @@ void main() {
       });
 
       test('should execute only onFailure for Failure', () {
-        const result = Failure<int>('Error');
+        const result = Failure<int>(message: 'Error');
         var successExecuted = false;
         var failureExecuted = false;
 
@@ -141,7 +141,7 @@ void main() {
       });
 
       test('should preserve Failure', () {
-        const result = Failure<int>('Error');
+        const result = Failure<int>(message: 'Error');
         final mapped = result.map((value) => value * 2);
 
         expect(mapped, isA<Failure<int>>());
@@ -158,14 +158,14 @@ void main() {
       });
 
       test('should return false for Failure', () {
-        const result = Failure<int>('Error');
+        const result = Failure<int>(message: 'Error');
         expect(result.isSuccess, false);
       });
     });
 
     group('isFailure', () {
       test('should return true for Failure', () {
-        const result = Failure<int>('Error');
+        const result = Failure<int>(message: 'Error');
         expect(result.isFailure, true);
       });
 
