@@ -4,79 +4,97 @@ import '../theme/app_text_styles.dart';
 import '../theme/app_spacings.dart';
 import '../theme/app_radius.dart';
 
-/// Reusable statistics card for dashboard
 class StatCard extends StatelessWidget {
   final IconData icon;
+  final Color iconColor;
   final String title;
   final String value;
   final String? subtitle;
-  final Color? iconColor;
-  final Color? iconBackgroundColor;
+  final Color? backgroundColor;
+  final VoidCallback? onTap;
 
   const StatCard({
     super.key,
     required this.icon,
+    required this.iconColor,
     required this.title,
     required this.value,
     this.subtitle,
-    this.iconColor,
-    this.iconBackgroundColor,
+    this.backgroundColor,
+    this.onTap,
   });
 
   @override
   Widget build(BuildContext context) {
-    return Container(
-      padding: const EdgeInsets.all(AppSpacings.itemSpacing),
+    final cardContent = Container(
+      padding: const EdgeInsets.all(AppSpacings.md),
       decoration: BoxDecoration(
-        color: AppColors.surface,
-        borderRadius: AppRadius.largeRadius,
+        color: backgroundColor ?? AppColors.surface,
+        borderRadius: AppRadius.mediumRadius,
         boxShadow: [
           BoxShadow(
-            color: AppColors.shadowLight,
-            blurRadius: 12,
+            color: Colors.black.withValues(alpha: 0.08),
+            blurRadius: 8,
             offset: const Offset(0, 2),
           ),
         ],
       ),
       child: Column(
         crossAxisAlignment: CrossAxisAlignment.start,
-        mainAxisSize: MainAxisSize.min,
         children: [
-          // Icon
+          // Icon in colored circle
           Container(
             padding: const EdgeInsets.all(AppSpacings.sm),
             decoration: BoxDecoration(
-              color: iconBackgroundColor ?? AppColors.primaryLight,
-              borderRadius: BorderRadius.circular(AppRadius.small),
+              color: iconColor.withValues(alpha: 0.15),
+              shape: BoxShape.circle,
             ),
-            child: Icon(icon, color: iconColor ?? AppColors.primary, size: 24),
+            child: Icon(icon, color: iconColor, size: 24),
           ),
-          const SizedBox(height: AppSpacings.sm + 4),
+          const SizedBox(height: AppSpacings.md),
 
-          // Title
+          // Large number
           Text(
-            title,
-            style: AppTextStyles.bodyMedium,
-            maxLines: 1,
-            overflow: TextOverflow.ellipsis,
+            value,
+            style: AppTextStyles.displayMedium.copyWith(
+              color: AppColors.textPrimary,
+              fontWeight: FontWeight.bold,
+            ),
           ),
           const SizedBox(height: AppSpacings.xs),
 
-          // Value
-          Text(value, style: AppTextStyles.displaySmall.copyWith(fontSize: 28)),
+          // Label
+          Text(
+            title,
+            style: AppTextStyles.bodyMedium.copyWith(
+              color: AppColors.textSecondary,
+              fontWeight: FontWeight.w500,
+            ),
+          ),
 
           // Subtitle (optional)
           if (subtitle != null) ...[
             const SizedBox(height: AppSpacings.xs),
             Text(
               subtitle!,
-              style: AppTextStyles.bodySmall,
-              maxLines: 1,
-              overflow: TextOverflow.ellipsis,
+              style: AppTextStyles.bodySmall.copyWith(
+                color: AppColors.textTertiary,
+              ),
             ),
           ],
         ],
       ),
     );
+
+    // Wrap with InkWell if onTap is provided
+    if (onTap != null) {
+      return InkWell(
+        onTap: onTap,
+        borderRadius: AppRadius.mediumRadius,
+        child: cardContent,
+      );
+    }
+
+    return cardContent;
   }
 }

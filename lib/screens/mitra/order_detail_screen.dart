@@ -11,6 +11,7 @@ import '../../core/widgets/primary_button.dart';
 import '../../repositories/order_repository.dart';
 import '../../models/order.dart';
 import '../../models/order_distance.dart';
+import 'order_tracking_screen.dart';
 
 class OrderDetailScreen extends StatefulWidget {
   final Order order;
@@ -489,10 +490,11 @@ class _OrderDetailScreenState extends State<OrderDetailScreen> {
             text: 'Lacak Pengiriman',
             icon: Icons.map_outlined,
             onPressed: () {
-              // TODO: Navigate to tracking screen
-              ScaffoldMessenger.of(context).showSnackBar(
-                const SnackBar(
-                  content: Text('Fitur tracking akan segera ditambahkan'),
+              Navigator.push(
+                context,
+                MaterialPageRoute(
+                  builder: (context) =>
+                      OrderTrackingScreen(order: widget.order),
                 ),
               );
             },

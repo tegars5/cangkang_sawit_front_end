@@ -7,7 +7,7 @@ import 'core/theme/app_theme.dart';
 import 'services/api_client.dart';
 import 'screens/auth/login_screen.dart';
 import 'screens/mitra/orders_screen.dart';
-import 'screens/admin/admin_orders_screen.dart';
+import 'screens/admin/admin_dashboard_screen.dart';
 import 'screens/driver/driver_tasks_screen.dart';
 
 void main() async {
@@ -82,7 +82,7 @@ class MyApp extends StatelessWidget {
       ),
       GoRoute(
         path: '/admin/orders',
-        builder: (context, state) => const AdminOrdersScreen(),
+        builder: (context, state) => const AdminDashboardScreen(),
       ),
       GoRoute(
         path: '/driver/tasks',

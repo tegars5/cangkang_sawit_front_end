@@ -151,4 +151,49 @@ class OrderRepository {
       return Failure(message: 'Terjadi kesalahan: $e', cause: e);
     }
   }
+
+  /// Approve order (admin only)
+  Future<Result<Order>> approveOrder(int orderId) async {
+    try {
+      final response = await _apiClient.approveOrder(orderId);
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        final orderJson = data['order'] as Map<String, dynamic>;
+        final order = Order.fromJson(orderJson);
+        return Success(order);
+      } else {
+        Map<String, dynamic>? errorData;
+        try {
+          errorData = jsonDecode(response.body) as Map<String, dynamic>;
+        } catch (_) {}
+
+        return Failure(
+          message: errorData?['message'] ?? 'Gagal menyetujui pesanan',
+          code: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return Failure(message: 'Terjadi kesalahan: $e', cause: e);
+    }
+  }
+
+  /// Get admin dashboard summary (total orders, in delivery, completed)
+  Future<Result<Map<String, dynamic>>> getAdminDashboardSummary() async {
+    try {
+      final response = await _apiClient.getAdminDashboardSummary();
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as Map<String, dynamic>;
+        return Success(data);
+      } else {
+        return Failure(
+          message: 'Gagal memuat ringkasan dashboard',
+          code: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return Failure(message: 'Terjadi kesalahan: $e', cause: e);
+    }
+  }
 }

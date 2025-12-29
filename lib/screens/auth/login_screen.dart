@@ -11,6 +11,7 @@ import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/icon_container.dart';
 import '../../repositories/auth_repository.dart';
+import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
   const LoginScreen({super.key});
@@ -198,6 +199,21 @@ class _LoginScreenState extends State<LoginScreen> {
               text: 'Masuk',
               onPressed: _handleLogin,
               isLoading: _isLoading,
+            ),
+            Row(
+              mainAxisAlignment: MainAxisAlignment.center,
+              children: [
+                const Text('Belum punya akun? '),
+                TextButton(
+                  onPressed: () {
+                    Navigator.push(
+                      context,
+                      MaterialPageRoute(builder: (_) => const RegisterScreen()),
+                    );
+                  },
+                  child: const Text('Daftar'),
+                ),
+              ],
             ),
           ],
         ),

@@ -1,78 +1,143 @@
-Tolong lakukan final cleanup & testing setelah Repository Layer 7/7 selesai.
+Tolong refactor dan redesign AdminDashboardScreen di Flutter project cangkang_sawit_mobile supaya mengikuti layout referensi di screen.jpg (dashboard admin Fujiyama Biomass) dan semua elemen berfungsi.
 
-1. Bersihkan semua warning dari flutter analyze
-Target: kalau bisa 0 warning, atau minimal hanya deprecation warning framework.
+Struktur dan perilaku yang diinginkan:
 
-Langkah:
+1. Layout Dashboard
+File utama:
 
-Jalankan flutter analyze --no-fatal-infos dan perhatikan daftar warning.
+lib/screens/admin/admin_dashboard_screen.dart
 
-Untuk setiap warning:
+lib/core/widgets/stat_card.dart atau widget baru untuk kartu statistik
 
-Unused import: hapus import yang tidak terpakai dari file terkait.
+lib/screens/admin/admin_orders_screen.dart
 
-Unused field / variable (mis. _error yang belum dipakai):
+lib/screens/admin/admin_products_screen.dart
 
-Kalau memang belum dipakai dan belum ada rencana UI‑nya, hapus.
+lib/screens/admin/assign_driver_dialog.dart (kalau perlu untuk navigasi lanjutan)
 
-Kalau mau dipakai untuk menampilkan error, implementasikan pemakaian minimal (mis. pakai ErrorView atau Text(failure.message) di UI).
+Bagian layout:
 
-Pastikan tidak ada lagi warning dari refactor (selain deprecation dari Flutter sendiri).
+Header:
 
-Jalankan dart format . setelah perubahan, lalu flutter analyze lagi untuk memastikan warning sudah berkurang atau hilang.
+Teks: "Welcome back, {nama admin}" (ambil dari user login jika memungkinkan).
 
-2. Manual testing end‑to‑end
-Lakukan uji coba manual berikut (tanpa mengubah arsitektur):
+Teks kecil: "Last updated: {jam:menit}" berdasarkan waktu terakhir refresh summary dari API.
 
-Mitra:
+Grid Stat Cards (2 kolom, 2 baris):
 
-Login sebagai mitra.
+Card 1: "New Orders" → value = jumlah pesanan dengan status pending.
 
-Buka MitraOrdersScreen (list order, cek loading/error/empty state).
+Card 2: "Pending Shipments" → value = jumlah pesanan dengan status on_delivery.
 
-Buat order baru di CreateOrderScreen (validasi form + total harga).
+Card 3: "Active Partners" → value = jumlah mitra aktif (boleh sementara hidden jika backend belum ada).
 
-Buka detail order (cek jarak, tombol bayar & batal).
+Card 4: "Inventory (Tons)" → value = total stok produk dalam ton (boleh placeholder dulu).
 
-Coba bayar dan batal satu order (pastikan status dan UI update).
+Semua card harus:
 
-Admin:
+Menggunakan widget reusable, misalnya DashboardStatCard.
 
-Login sebagai admin.
+Dibungkus InkWell / GestureDetector dengan onTap.
 
-Buka AdminOrdersScreen:
+Quick Actions (tiga tombol besar):
 
-List order tampil, statistik benar (_totalOrders, _onDelivery, _completed).
+"Create New Order"
 
-Buka dialog AssignDriverDialog:
+onTap → navigasi ke screen pembuatan pesanan oleh admin (kalau belum ada, boleh sementara arahkan ke CreateOrderScreen untuk Mitra).
 
-Driver list muncul (loading/error state jalan).
+"Manage Products"
 
-Pilih driver → assign → dialog tertutup dan list order refresh.
+onTap → navigasi ke AdminProductsScreen.
 
-Logout admin dan pastikan diarahkan ke /login.
+"View All Shipments"
 
-Driver:
+onTap → navigasi ke AdminOrdersScreen tanpa filter (semua pesanan).
 
-Login sebagai driver.
+Desain seperti di contoh: tombol full-width, ikon di kiri, teks di tengah.
 
-Buka DriverTasksScreen (list task, loading/error/empty state).
+Order Status (sementara simple)
 
-Buka detail task:
+Box yang menampilkan:
 
-Jarak driver → tujuan tampil.
+Total Orders (angka).
 
-Ubah status (on_the_way, arrived, completed) dan cek update.
+Breakdown singkat: Completed, In Transit, Processing, Awaiting (boleh dalam bentuk legenda list dulu, tidak harus chart pie).
 
-Kirim lokasi (pakai GPS nyata), pastikan tidak error.
+Data diambil dari summary API backend yang sudah ada (/admin/dashboard-summary).
 
-Catat bug kecil kalau ada (mis. snackbar tidak muncul, state tidak refresh) dan perbaiki di tempat yang relevan tanpa mengubah pola Repository + Result.
+Recent Activity (opsional, boleh placeholder):
 
-3. Update dokumentasi singkat
-Setelah cleanup & testing:
+List 2–3 item dengan icon, title, dan waktu relatif (“2 minutes ago”).
 
-Update walkthrough.md / task.md dengan:
+Placeholder static dulu, nanti bisa dihubungkan ke activity log.
 
-“Warnings cleaned” (sebutkan kalau masih ada deprecation warning bawaan Flutter).
+2. Perilaku Interaktif / Navigasi
+Stat Card OnTap:
 
-Status testing: skenario apa saja yang sudah dicoba dan hasilnya.
+New Orders:
+
+onTap → buka AdminOrdersScreen(initialStatus: 'pending').
+
+Pending Shipments:
+
+onTap → buka AdminOrdersScreen(initialStatus: 'on_delivery').
+
+Active Partners:
+
+sementara bisa TODO atau arahkan ke screen list mitra jika sudah ada.
+
+Inventory:
+
+onTap → AdminProductsScreen.
+
+Filter di AdminOrdersScreen:
+
+Tambah optional parameter final String? initialStatus;.
+
+Jika initialStatus != null, saat initState:
+
+Set filter status sesuai nilai parameter.
+
+Tampilkan indikator kecil di atas list:
+
+Text: "Pesanan terfilter: {status dalam Bahasa Indonesia}".
+
+Tombol "Hapus Filter" untuk reset dan menampilkan semua pesanan.
+
+State Handling:
+
+Dashboard harus memanggil summary API yang sudah ada, misalnya di initState:
+
+AdminDashboardRepository.getSummary() → mengisi _totalOrders, _pendingCount, _inDeliveryCount, _completedCount, dsb.
+
+Tampilkan CircularProgressIndicator saat loading.
+
+Jika error, tampilkan snackbar dengan pesan yang jelas dalam Bahasa Indonesia.
+
+3. Reusable Widgets
+Tolong buat widget-widget berikut (jika belum ada):
+
+DashboardStatCard:
+
+Props: title, value, icon, onTap.
+
+Stylenya mirip card putih rounded di contoh, dengan icon kecil di atas, angka besar, label kecil.
+
+DashboardQuickActionButton:
+
+Props: icon, label, onTap.
+
+Full-width button, background bisa warna navy/primary untuk yang utama ("Create New Order") dan putih dengan border untuk yang lain.
+
+4. Konsistensi Desain & Bahasa
+Gunakan warna dan typography yang sudah ada di app (hijau Cangkang Sawit, dsb.), tapi layout mengikuti struktur contoh screen.jpg.
+
+Semua teks dalam Bahasa Indonesia yang natural.
+
+Tetap integrasikan bottom navigation admin yang sudah ada (tab Pesanan/Produk) tanpa merusak struktur routing.
+
+Setelah selesai:
+
+Update walkthrough.md dengan section “Redesain Dashboard Admin” yang menjelaskan perubahan layout dan perilaku baru.
+
+Pastikan tidak ada breaking change di screen lain (orders, products, waybill, tracking).

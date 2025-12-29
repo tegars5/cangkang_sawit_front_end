@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
   // Base URL untuk backend Laravel
-  static const String baseUrl = 'http://192.168.1.2:8000/api';
+  static const String baseUrl = 'http://192.168.1.6:8000/api';
 
   // ========== Token & User Data Management ==========
 
@@ -162,4 +162,34 @@ class ApiClient {
 
   Future<http.Response> cancelOrder(int orderId) =>
       _handlePost('/orders/$orderId/cancel', {});
+
+  /// Approve order (admin only)
+  Future<http.Response> approveOrder(int orderId) =>
+      _handlePost('/admin/orders/$orderId/approve', {});
+
+  /// Get admin dashboard summary (total orders, in delivery, completed)
+  Future<http.Response> getAdminDashboardSummary() =>
+      _handleGet('/admin/dashboard-summary');
+
+  // Waybills
+  Future<http.Response> getWaybills() => _handleGet('/admin/waybills');
+
+  Future<http.Response> getWaybillDetail(int id) =>
+      _handleGet('/admin/waybills/$id');
+
+  Future<http.Response> createWaybill(int orderId) =>
+      _handlePost('/admin/waybills', {'order_id': orderId});
+
+  // Tracking
+  Future<http.Response> getOrderTracking(int orderId) =>
+      _handleGet('/orders/$orderId/tracking');
+
+  // Products (Admin)
+  Future<http.Response> createProduct(Map<String, dynamic> data) =>
+      _handlePost('/products', data);
+
+  Future<http.Response> updateProduct(int id, Map<String, dynamic> data) =>
+      _handlePut('/products/$id', data);
+
+  Future<http.Response> deleteProduct(int id) => _handleDelete('/products/$id');
 }
