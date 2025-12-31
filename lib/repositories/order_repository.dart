@@ -52,6 +52,9 @@ class OrderRepository {
     }
   }
 
+  /// Alias for getOrderDetail for consistency
+  Future<Result<Order>> getOrderById(int id) => getOrderDetail(id);
+
   /// Get order distance (warehouse to destination)
   Future<Result<OrderDistance>> getOrderDistance(int orderId) async {
     try {

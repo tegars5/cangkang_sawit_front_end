@@ -1,3 +1,5 @@
+import 'order_item.dart';
+
 /// Simple Order model for Mitra and Admin screens
 class Order {
   final int id;
@@ -10,6 +12,9 @@ class Order {
   final String? paymentStatus;
   final double? totalPrice;
   final String? paymentMethod;
+  final List<OrderItem>? orderItems;
+  final String? driverName;
+  final int? driverId;
 
   Order({
     required this.id,
@@ -22,9 +27,20 @@ class Order {
     this.paymentStatus,
     this.totalPrice,
     this.paymentMethod,
+    this.orderItems,
+    this.driverName,
+    this.driverId,
   });
 
   factory Order.fromJson(Map<String, dynamic> json) {
+    // Parse order items if available
+    List<OrderItem>? items;
+    if (json['order_items'] != null) {
+      items = (json['order_items'] as List)
+          .map((item) => OrderItem.fromJson(item as Map<String, dynamic>))
+          .toList();
+    }
+
     return Order(
       id: json['id'] as int,
       orderCode: json['order_code'] as String? ?? 'N/A',
@@ -36,6 +52,9 @@ class Order {
       paymentStatus: json['payment_status'] as String?,
       totalPrice: (json['total_price'] as num?)?.toDouble(),
       paymentMethod: json['payment_method'] as String?,
+      orderItems: items,
+      driverName: json['driver']?['name'] as String?,
+      driverId: json['driver_id'] as int?,
     );
   }
 

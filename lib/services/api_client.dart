@@ -4,7 +4,7 @@ import 'package:shared_preferences/shared_preferences.dart';
 
 class ApiClient {
   // Base URL untuk backend Laravel
-  static const String baseUrl = 'http://192.168.1.6:8000/api';
+  static const String baseUrl = 'http://10.176.125.116:8000/api';
 
   // ========== Token & User Data Management ==========
 

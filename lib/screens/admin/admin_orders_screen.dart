@@ -13,6 +13,7 @@ import '../../repositories/waybill_repository.dart';
 import '../../models/order.dart';
 import 'assign_driver_dialog.dart';
 import 'waybill_detail_screen.dart';
+import 'admin_order_detail_screen.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   final String? initialStatus;
@@ -473,7 +474,19 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                     '${order.mitraName ?? "Mitra"} • ${order.totalWeight} ton',
                 status: order.statusDisplay,
                 statusColor: _getStatusColor(order.status),
-                onTap: () => _showOrderActions(order),
+                onTap: () async {
+                  // Navigate to detail screen
+                  await Navigator.push(
+                    context,
+                    MaterialPageRoute(
+                      builder: (context) =>
+                          AdminOrderDetailScreen(orderId: order.id),
+                    ),
+                  );
+                  // Refresh after returning
+                  _fetchOrders();
+                  _fetchDashboardSummary();
+                },
               );
             },
           ),
