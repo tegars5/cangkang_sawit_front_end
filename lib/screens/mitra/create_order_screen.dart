@@ -1,6 +1,6 @@
 import 'package:flutter/material.dart';
 import 'package:intl/intl.dart';
-import 'dart:convert'; // Added this import for jsonDecode
+import 'dart:convert';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
@@ -27,6 +27,11 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   final _destinationController = TextEditingController();
   final _weightController = TextEditingController();
   final _notesController = TextEditingController();
+
+  // Location data
+  double? _destinationLat;
+  double? _destinationLng;
+  String? _selectedAddress;
 
   // State
   List<Product> _products = [];
@@ -155,7 +160,9 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
 
     try {
       final orderData = {
-        'destination_address': _destinationController.text,
+        'destination_address': _selectedAddress ?? _destinationController.text,
+        'destination_lat': _destinationLat,
+        'destination_lng': _destinationLng,
         'items': [
           {
             'product_id': _selectedProduct!.id,
@@ -325,21 +332,215 @@ class _CreateOrderScreenState extends State<CreateOrderScreen> {
   }
 
   Widget _buildDestinationField() {
-    return AppTextField(
-      controller: _destinationController,
-      label: 'Alamat Tujuan',
-      hintText: 'Masukkan alamat lengkap tujuan pengiriman',
-      prefixIcon: Icons.location_on_outlined,
-      maxLines: 2,
-      validator: (value) {
-        if (value == null || value.isEmpty) {
-          return 'Alamat tujuan harus diisi';
-        }
-        if (value.length < 10) {
-          return 'Alamat tujuan terlalu pendek';
-        }
-        return null;
-      },
+    return Container(
+      padding: const EdgeInsets.all(AppSpacings.md),
+      decoration: BoxDecoration(
+        color: AppColors.surface,
+        borderRadius: AppRadius.mediumRadius,
+        boxShadow: [
+          BoxShadow(
+            color: Colors.black.withValues(alpha: 0.05),
+            blurRadius: 10,
+            offset: const Offset(0, 2),
+          ),
+        ],
+      ),
+      child: Column(
+        crossAxisAlignment: CrossAxisAlignment.start,
+        children: [
+          Row(
+            children: [
+              Icon(Icons.location_on, color: AppColors.primary, size: 20),
+              const SizedBox(width: 8),
+              Text(
+                'Lokasi Tujuan Pengiriman',
+                style: AppTextStyles.titleMedium.copyWith(
+                  color: AppColors.textPrimary,
+                  fontWeight: FontWeight.w600,
+                ),
+              ),
+              const SizedBox(width: 4),
+              Text('*', style: TextStyle(color: AppColors.error, fontSize: 16)),
+            ],
+          ),
+          const SizedBox(height: AppSpacings.sm),
+
+          // Address Field
+          AppTextField(
+            controller: _destinationController,
+            label: 'Alamat Lengkap',
+            hintText: 'Contoh: Jl. Sudirman No. 123, Jakarta Pusat',
+            prefixIcon: Icons.home_outlined,
+            maxLines: 2,
+            validator: (value) {
+              if (value == null || value.isEmpty) {
+                return 'Alamat tujuan harus diisi';
+              }
+              if (value.length < 10) {
+                return 'Alamat tujuan terlalu pendek';
+              }
+              return null;
+            },
+          ),
+
+          const SizedBox(height: AppSpacings.sm),
+
+          // Coordinates Row
+          Row(
+            children: [
+              Expanded(
+                child: TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Latitude',
+                    hintText: 'Contoh: -6.2088',
+                    prefixIcon: Icon(Icons.my_location, size: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: AppRadius.smallRadius,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacings.sm,
+                      vertical: AppSpacings.sm,
+                    ),
+                  ),
+                  keyboardType: TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _destinationLat = double.tryParse(value);
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Wajib diisi';
+                    }
+                    final lat = double.tryParse(value);
+                    if (lat == null) {
+                      return 'Format salah';
+                    }
+                    if (lat < -90 || lat > 90) {
+                      return 'Latitude: -90 s/d 90';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+              const SizedBox(width: AppSpacings.sm),
+              Expanded(
+                child: TextFormField(
+                  decoration: InputDecoration(
+                    labelText: 'Longitude',
+                    hintText: 'Contoh: 106.8456',
+                    prefixIcon: Icon(Icons.my_location, size: 20),
+                    border: OutlineInputBorder(
+                      borderRadius: AppRadius.smallRadius,
+                    ),
+                    contentPadding: const EdgeInsets.symmetric(
+                      horizontal: AppSpacings.sm,
+                      vertical: AppSpacings.sm,
+                    ),
+                  ),
+                  keyboardType: TextInputType.numberWithOptions(
+                    decimal: true,
+                    signed: true,
+                  ),
+                  onChanged: (value) {
+                    setState(() {
+                      _destinationLng = double.tryParse(value);
+                    });
+                  },
+                  validator: (value) {
+                    if (value == null || value.isEmpty) {
+                      return 'Wajib diisi';
+                    }
+                    final lng = double.tryParse(value);
+                    if (lng == null) {
+                      return 'Format salah';
+                    }
+                    if (lng < -180 || lng > 180) {
+                      return 'Longitude: -180 s/d 180';
+                    }
+                    return null;
+                  },
+                ),
+              ),
+            ],
+          ),
+
+          const SizedBox(height: AppSpacings.sm),
+
+          // Helper Info
+          Container(
+            padding: const EdgeInsets.all(AppSpacings.sm),
+            decoration: BoxDecoration(
+              color: AppColors.primary.withValues(alpha: 0.1),
+              borderRadius: AppRadius.smallRadius,
+              border: Border.all(
+                color: AppColors.primary.withValues(alpha: 0.3),
+              ),
+            ),
+            child: Row(
+              crossAxisAlignment: CrossAxisAlignment.start,
+              children: [
+                Icon(Icons.info_outline, color: AppColors.primary, size: 16),
+                const SizedBox(width: 8),
+                Expanded(
+                  child: Column(
+                    crossAxisAlignment: CrossAxisAlignment.start,
+                    children: [
+                      Text(
+                        'Cara mendapatkan koordinat:',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.primary,
+                          fontWeight: FontWeight.w600,
+                        ),
+                      ),
+                      const SizedBox(height: 4),
+                      Text(
+                        '1. Buka Google Maps\n2. Klik lokasi tujuan\n3. Salin koordinat yang muncul',
+                        style: AppTextStyles.bodySmall.copyWith(
+                          color: AppColors.textPrimary,
+                        ),
+                      ),
+                    ],
+                  ),
+                ),
+              ],
+            ),
+          ),
+
+          // Success indicator
+          if (_destinationLat != null && _destinationLng != null) ...[
+            const SizedBox(height: AppSpacings.sm),
+            Container(
+              padding: const EdgeInsets.all(AppSpacings.sm),
+              decoration: BoxDecoration(
+                color: AppColors.success.withValues(alpha: 0.1),
+                borderRadius: AppRadius.smallRadius,
+                border: Border.all(
+                  color: AppColors.success.withValues(alpha: 0.3),
+                ),
+              ),
+              child: Row(
+                children: [
+                  Icon(Icons.check_circle, color: AppColors.success, size: 16),
+                  const SizedBox(width: 8),
+                  Expanded(
+                    child: Text(
+                      'Koordinat valid! Jarak akan dihitung otomatis.',
+                      style: AppTextStyles.bodySmall.copyWith(
+                        color: AppColors.success,
+                        fontWeight: FontWeight.w500,
+                      ),
+                    ),
+                  ),
+                ],
+              ),
+            ),
+          ],
+        ],
+      ),
     );
   }
 
