@@ -6,6 +6,7 @@ import '../../core/widgets/dashboard_stat_card.dart';
 import '../../core/widgets/dashboard_quick_action_button.dart';
 import '../../repositories/order_repository.dart';
 import '../../core/utils/result.dart';
+import 'admin_orders_screen.dart';
 // Actually we should use callback or parent tab controller to switch tabs if they are in the same scaffold
 // But the user requested navigation. 'onTap -> AdminOrdersScreen'.
 // Since AdminDashboardScreen uses a BottomNavigationBar, we might need a way to switch the index of the parent.
@@ -145,8 +146,14 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                           icon: Icons.shopping_bag_outlined,
                           iconColor: AppColors.primary,
                           onTap: () {
-                            // Navigate to Orders tab (index 1)
-                            widget.onTabSelected(1);
+                            // Navigate to Orders with pending filter
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) =>
+                                    AdminOrdersScreen(initialStatus: 'pending'),
+                              ),
+                            );
                           },
                         ),
                         DashboardStatCard(
@@ -154,14 +161,32 @@ class _AdminOverviewScreenState extends State<AdminOverviewScreen> {
                           value: '$_pendingShipments',
                           icon: Icons.local_shipping_outlined,
                           iconColor: Colors.orange,
-                          onTap: () => widget.onTabSelected(1),
+                          onTap: () {
+                            // Navigate to Orders with on_delivery filter
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AdminOrdersScreen(
+                                  initialStatus: 'on_delivery',
+                                ),
+                              ),
+                            );
+                          },
                         ),
                         DashboardStatCard(
                           title: 'Active Partners',
                           value: '$_activePartners',
                           icon: Icons.people_outline,
                           iconColor: Colors.blue,
-                          onTap: () {}, // Dashboard feature not fully ready
+                          onTap: () {
+                            // Navigate to all orders (partners feature not ready)
+                            Navigator.push(
+                              context,
+                              MaterialPageRoute(
+                                builder: (context) => AdminOrdersScreen(),
+                              ),
+                            );
+                          },
                         ),
                         DashboardStatCard(
                           title: 'Inventory (Tons)',
