@@ -14,6 +14,9 @@ import '../../models/order.dart';
 import 'assign_driver_dialog.dart';
 import 'waybill_detail_screen.dart';
 import 'admin_order_confirm_bottom_sheet.dart';
+import 'assign_driver_bottom_sheet.dart';
+import 'create_waybill_bottom_sheet.dart';
+import 'admin_order_detail_screen.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   final String? initialStatus;
@@ -475,27 +478,88 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 status: order.statusDisplay,
                 statusColor: _getStatusColor(order.status),
                 onTap: () async {
-                  // Show bottom sheet confirmation
-                  final result = await showModalBottomSheet<bool>(
-                    context: context,
-                    isScrollControlled: true,
-                    shape: const RoundedRectangleBorder(
-                      borderRadius: BorderRadius.vertical(
-                        top: Radius.circular(24),
+                  bool? result;
+
+                  // Show appropriate bottom sheet based on order status
+                  if (order.status == 'pending') {
+                    // Pending orders → Approve bottom sheet
+                    result = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(24),
+                        ),
                       ),
-                    ),
-                    builder: (context) => DraggableScrollableSheet(
-                      initialChildSize: 0.7,
-                      minChildSize: 0.5,
-                      maxChildSize: 0.9,
-                      expand: false,
-                      builder: (context, scrollController) =>
-                          AdminOrderConfirmBottomSheet(
-                            order: order,
-                            scrollController: scrollController,
-                          ),
-                    ),
-                  );
+                      builder: (context) => DraggableScrollableSheet(
+                        initialChildSize: 0.7,
+                        minChildSize: 0.5,
+                        maxChildSize: 0.9,
+                        expand: false,
+                        builder: (context, scrollController) =>
+                            AdminOrderConfirmBottomSheet(
+                              order: order,
+                              scrollController: scrollController,
+                            ),
+                      ),
+                    );
+                  } else if (order.status == 'confirmed' &&
+                      order.driverId == null) {
+                    // Confirmed without driver → Assign driver bottom sheet
+                    result = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(24),
+                        ),
+                      ),
+                      builder: (context) => DraggableScrollableSheet(
+                        initialChildSize: 0.7,
+                        minChildSize: 0.5,
+                        maxChildSize: 0.9,
+                        expand: false,
+                        builder: (context, scrollController) =>
+                            AssignDriverBottomSheet(
+                              order: order,
+                              scrollController: scrollController,
+                            ),
+                      ),
+                    );
+                  } else if (order.status == 'confirmed' &&
+                      order.driverId != null) {
+                    // Confirmed with driver → Create waybill bottom sheet
+                    result = await showModalBottomSheet<bool>(
+                      context: context,
+                      isScrollControlled: true,
+                      shape: const RoundedRectangleBorder(
+                        borderRadius: BorderRadius.vertical(
+                          top: Radius.circular(24),
+                        ),
+                      ),
+                      builder: (context) => DraggableScrollableSheet(
+                        initialChildSize: 0.7,
+                        minChildSize: 0.5,
+                        maxChildSize: 0.9,
+                        expand: false,
+                        builder: (context, scrollController) =>
+                            CreateWaybillBottomSheet(
+                              order: order,
+                              scrollController: scrollController,
+                            ),
+                      ),
+                    );
+                  } else {
+                    // Other statuses → Navigate to detail screen
+                    result = await Navigator.push<bool>(
+                      context,
+                      MaterialPageRoute(
+                        builder: (context) =>
+                            AdminOrderDetailScreen(orderId: order.id),
+                      ),
+                    );
+                  }
+
                   // Refresh if action was successful
                   if (result == true) {
                     _fetchOrders();

@@ -55,6 +55,62 @@ class OrderRepository {
   /// Alias for getOrderDetail for consistency
   Future<Result<Order>> getOrderById(int id) => getOrderDetail(id);
 
+  /// Get available drivers for an order
+  Future<Result<List<Map<String, dynamic>>>> getAvailableDrivers(
+    int orderId,
+  ) async {
+    try {
+      final response = await _apiClient.get(
+        '/admin/orders/$orderId/available-drivers',
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body) as List;
+        final drivers = data
+            .map(
+              (driver) => {
+                'id': driver['id'] as int,
+                'name': driver['name'] as String,
+                'status': driver['status'] as String,
+              },
+            )
+            .toList();
+        return Success(drivers);
+      } else {
+        return Failure(
+          message: 'Gagal memuat daftar driver',
+          code: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return Failure(message: 'Terjadi kesalahan: $e', cause: e);
+    }
+  }
+
+  /// Assign driver to an order
+  Future<Result<Order>> assignDriver(int orderId, int driverId) async {
+    try {
+      final response = await _apiClient.post(
+        '/admin/orders/$orderId/assign-driver',
+        {'driver_id': driverId},
+      );
+
+      if (response.statusCode == 200) {
+        final data = jsonDecode(response.body);
+        final order = Order.fromJson(data);
+        return Success(order);
+      } else {
+        final errorData = jsonDecode(response.body);
+        return Failure(
+          message: errorData['message'] ?? 'Gagal menugaskan driver',
+          code: response.statusCode,
+        );
+      }
+    } catch (e) {
+      return Failure(message: 'Terjadi kesalahan: $e', cause: e);
+    }
+  }
+
   /// Get order distance (warehouse to destination)
   Future<Result<OrderDistance>> getOrderDistance(int orderId) async {
     try {

@@ -1,40 +1,89 @@
-import 'package:cangkang_sawit_mobile/core/utils/result.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
 import '../../core/theme/app_radius.dart';
 import '../../core/widgets/primary_button.dart';
+import '../../core/utils/result.dart';
 import '../../repositories/order_repository.dart';
 import '../../models/order.dart';
-import 'admin_order_detail_screen.dart';
 
-class AdminOrderConfirmBottomSheet extends StatefulWidget {
+class AssignDriverBottomSheet extends StatefulWidget {
   final Order order;
   final ScrollController? scrollController;
 
-  const AdminOrderConfirmBottomSheet({
+  const AssignDriverBottomSheet({
     super.key,
     required this.order,
     this.scrollController,
   });
 
   @override
-  State<AdminOrderConfirmBottomSheet> createState() =>
-      _AdminOrderConfirmBottomSheetState();
+  State<AssignDriverBottomSheet> createState() =>
+      _AssignDriverBottomSheetState();
 }
 
-class _AdminOrderConfirmBottomSheetState
-    extends State<AdminOrderConfirmBottomSheet> {
+class _AssignDriverBottomSheetState extends State<AssignDriverBottomSheet> {
   final _orderRepository = OrderRepository();
+  bool _isLoading = true;
   bool _isProcessing = false;
+  List<Map<String, dynamic>> _availableDrivers = [];
+  int? _selectedDriverId;
 
-  Future<void> _handleApprove() async {
+  @override
+  void initState() {
+    super.initState();
+    _fetchAvailableDrivers();
+  }
+
+  Future<void> _fetchAvailableDrivers() async {
+    setState(() {
+      _isLoading = true;
+    });
+
+    final result = await _orderRepository.getAvailableDrivers(widget.order.id);
+
+    if (!mounted) return;
+
+    if (result is Success) {
+      setState(() {
+        _availableDrivers = (result as Success).data;
+        _isLoading = false;
+      });
+    } else if (result is Failure) {
+      setState(() {
+        _isLoading = false;
+      });
+      if (mounted) {
+        ScaffoldMessenger.of(context).showSnackBar(
+          SnackBar(
+            content: Text((result as Failure).message),
+            backgroundColor: AppColors.error,
+          ),
+        );
+      }
+    }
+  }
+
+  Future<void> _handleAssignDriver() async {
+    if (_selectedDriverId == null) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pilih driver terlebih dahulu'),
+          backgroundColor: AppColors.error,
+        ),
+      );
+      return;
+    }
+
     setState(() {
       _isProcessing = true;
     });
 
-    final result = await _orderRepository.approveOrder(widget.order.id);
+    final result = await _orderRepository.assignDriver(
+      widget.order.id,
+      _selectedDriverId!,
+    );
 
     if (!mounted) return;
 
@@ -46,17 +95,16 @@ class _AdminOrderConfirmBottomSheetState
       if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(
         const SnackBar(
-          content: Text('Pesanan berhasil disetujui'),
+          content: Text('Driver berhasil ditugaskan'),
           backgroundColor: AppColors.success,
         ),
       );
       Navigator.pop(context, true);
     } else if (result is Failure) {
       if (!mounted) return;
-      final failure = result as Failure;
       ScaffoldMessenger.of(context).showSnackBar(
         SnackBar(
-          content: Text(failure.message),
+          content: Text((result as Failure).message),
           backgroundColor: AppColors.error,
         ),
       );
@@ -106,13 +154,13 @@ class _AdminOrderConfirmBottomSheetState
                     width: 80,
                     height: 80,
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       shape: BoxShape.circle,
                     ),
-                    child: Icon(
-                      Icons.local_shipping_outlined,
+                    child: const Icon(
+                      Icons.person_add_outlined,
                       size: 40,
-                      color: AppColors.success,
+                      color: Colors.blue,
                     ),
                   ),
 
@@ -120,7 +168,7 @@ class _AdminOrderConfirmBottomSheetState
 
                   // Title
                   Text(
-                    'Konfirmasi Pesanan Ini?',
+                    'Tugaskan Driver?',
                     style: AppTextStyles.headlineMedium.copyWith(
                       fontWeight: FontWeight.bold,
                       color: AppColors.textPrimary,
@@ -165,18 +213,18 @@ class _AdminOrderConfirmBottomSheetState
                   Container(
                     padding: const EdgeInsets.all(AppSpacings.md),
                     decoration: BoxDecoration(
-                      color: AppColors.success.withValues(alpha: 0.1),
+                      color: Colors.blue.withValues(alpha: 0.1),
                       borderRadius: AppRadius.mediumRadius,
                       border: Border.all(
-                        color: AppColors.success.withValues(alpha: 0.3),
+                        color: Colors.blue.withValues(alpha: 0.3),
                       ),
                     ),
                     child: Row(
                       crossAxisAlignment: CrossAxisAlignment.start,
                       children: [
-                        Icon(
-                          Icons.location_on,
-                          color: AppColors.success,
+                        const Icon(
+                          Icons.notifications_active,
+                          color: Colors.blue,
                           size: 24,
                         ),
                         const SizedBox(width: AppSpacings.md),
@@ -185,15 +233,15 @@ class _AdminOrderConfirmBottomSheetState
                             crossAxisAlignment: CrossAxisAlignment.start,
                             children: [
                               Text(
-                                'Setelah Disetujui',
+                                'Notifikasi Driver',
                                 style: AppTextStyles.titleMedium.copyWith(
-                                  color: AppColors.success,
+                                  color: Colors.blue,
                                   fontWeight: FontWeight.bold,
                                 ),
                               ),
                               const SizedBox(height: 4),
                               Text(
-                                'Pesanan akan masuk ke tahap persiapan pengiriman. Anda dapat menugaskan driver dan membuat surat jalan untuk pesanan ini.',
+                                'Driver yang dipilih akan mendapat notifikasi task baru dan dapat memulai pengiriman.',
                                 style: AppTextStyles.bodySmall.copyWith(
                                   color: AppColors.textPrimary,
                                   height: 1.5,
@@ -205,6 +253,112 @@ class _AdminOrderConfirmBottomSheetState
                       ],
                     ),
                   ),
+
+                  const SizedBox(height: AppSpacings.xl),
+
+                  // Driver List
+                  if (_isLoading)
+                    const Center(
+                      child: Padding(
+                        padding: EdgeInsets.all(AppSpacings.xl),
+                        child: CircularProgressIndicator(),
+                      ),
+                    )
+                  else if (_availableDrivers.isEmpty)
+                    Container(
+                      padding: const EdgeInsets.all(AppSpacings.xl),
+                      child: Column(
+                        children: [
+                          Icon(
+                            Icons.person_off_outlined,
+                            size: 48,
+                            color: AppColors.textSecondary,
+                          ),
+                          const SizedBox(height: AppSpacings.md),
+                          Text(
+                            'Tidak ada driver tersedia',
+                            style: AppTextStyles.bodyMedium.copyWith(
+                              color: AppColors.textSecondary,
+                            ),
+                          ),
+                        ],
+                      ),
+                    )
+                  else
+                    Column(
+                      crossAxisAlignment: CrossAxisAlignment.start,
+                      children: [
+                        Text(
+                          'Pilih Driver',
+                          style: AppTextStyles.titleMedium.copyWith(
+                            fontWeight: FontWeight.bold,
+                          ),
+                        ),
+                        const SizedBox(height: AppSpacings.sm),
+                        ..._availableDrivers.map((driver) {
+                          final driverId = driver['id'] as int;
+                          final driverName = driver['name'] as String;
+                          final isAvailable = driver['status'] == 'available';
+
+                          return Container(
+                            margin: const EdgeInsets.only(
+                              bottom: AppSpacings.sm,
+                            ),
+                            decoration: BoxDecoration(
+                              border: Border.all(
+                                color: _selectedDriverId == driverId
+                                    ? AppColors.primary
+                                    : AppColors.textTertiary.withValues(
+                                        alpha: 0.2,
+                                      ),
+                                width: _selectedDriverId == driverId ? 2 : 1,
+                              ),
+                              borderRadius: AppRadius.mediumRadius,
+                            ),
+                            child: RadioListTile<int>(
+                              value: driverId,
+                              groupValue: _selectedDriverId,
+                              onChanged: isAvailable
+                                  ? (value) {
+                                      setState(() {
+                                        _selectedDriverId = value;
+                                      });
+                                    }
+                                  : null,
+                              title: Text(
+                                driverName,
+                                style: AppTextStyles.titleMedium.copyWith(
+                                  fontWeight: FontWeight.w600,
+                                ),
+                              ),
+                              subtitle: Row(
+                                children: [
+                                  Icon(
+                                    isAvailable
+                                        ? Icons.check_circle
+                                        : Icons.local_shipping,
+                                    size: 14,
+                                    color: isAvailable
+                                        ? AppColors.success
+                                        : Colors.orange,
+                                  ),
+                                  const SizedBox(width: 4),
+                                  Text(
+                                    isAvailable ? 'Available' : 'On Delivery',
+                                    style: AppTextStyles.bodySmall.copyWith(
+                                      color: isAvailable
+                                          ? AppColors.success
+                                          : Colors.orange,
+                                    ),
+                                  ),
+                                ],
+                              ),
+                              activeColor: AppColors.primary,
+                            ),
+                          );
+                        }),
+                      ],
+                    ),
 
                   const SizedBox(height: AppSpacings.xl * 2),
                 ],
@@ -229,8 +383,12 @@ class _AdminOrderConfirmBottomSheetState
               crossAxisAlignment: CrossAxisAlignment.stretch,
               children: [
                 PrimaryButton(
-                  text: 'Setujui Pesanan',
-                  onPressed: _isProcessing ? null : _handleApprove,
+                  text: _selectedDriverId != null
+                      ? 'Tugaskan ke ${_availableDrivers.firstWhere((d) => d['id'] == _selectedDriverId)['name']}'
+                      : 'Pilih Driver',
+                  onPressed: _isProcessing || _selectedDriverId == null
+                      ? null
+                      : _handleAssignDriver,
                   isLoading: _isProcessing,
                 ),
                 const SizedBox(height: AppSpacings.sm),
@@ -248,27 +406,6 @@ class _AdminOrderConfirmBottomSheetState
                     style: AppTextStyles.titleMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
-                  ),
-                ),
-                const SizedBox(height: AppSpacings.xs),
-                TextButton.icon(
-                  onPressed: _isProcessing
-                      ? null
-                      : () {
-                          Navigator.pop(context); // Close bottom sheet
-                          Navigator.push(
-                            context,
-                            MaterialPageRoute(
-                              builder: (context) => AdminOrderDetailScreen(
-                                orderId: widget.order.id,
-                              ),
-                            ),
-                          );
-                        },
-                  icon: const Icon(Icons.info_outline, size: 18),
-                  label: const Text('Lihat Detail Lengkap'),
-                  style: TextButton.styleFrom(
-                    foregroundColor: AppColors.primary,
                   ),
                 ),
               ],
@@ -302,7 +439,7 @@ class _AdminOrderConfirmBottomSheetState
                 child: Text(
                   label,
                   style: AppTextStyles.bodyMedium.copyWith(
-                    color: AppColors.success,
+                    color: Colors.blue,
                     fontWeight: FontWeight.w600,
                   ),
                 ),
