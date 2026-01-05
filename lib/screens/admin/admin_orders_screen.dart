@@ -13,7 +13,7 @@ import '../../repositories/waybill_repository.dart';
 import '../../models/order.dart';
 import 'assign_driver_dialog.dart';
 import 'waybill_detail_screen.dart';
-import 'admin_order_detail_screen.dart';
+import 'admin_order_action_screen.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   final String? initialStatus;
@@ -39,7 +39,7 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
   @override
   void initState() {
     super.initState();
-    _statusFilter = widget.initialStatus; // Initialize filter from widget param
+    _statusFilter = widget.initialStatus;
     _fetchDashboardSummary();
     _fetchOrders();
   }
@@ -475,17 +475,19 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 status: order.statusDisplay,
                 statusColor: _getStatusColor(order.status),
                 onTap: () async {
-                  // Navigate to detail screen
-                  await Navigator.push(
+                  // Navigate to action screen
+                  final result = await Navigator.push<bool>(
                     context,
                     MaterialPageRoute(
                       builder: (context) =>
-                          AdminOrderDetailScreen(orderId: order.id),
+                          AdminOrderActionScreen(orderId: order.id),
                     ),
                   );
-                  // Refresh after returning
-                  _fetchOrders();
-                  _fetchDashboardSummary();
+                  // Refresh if action was successful
+                  if (result == true) {
+                    _fetchOrders();
+                    _fetchDashboardSummary();
+                  }
                 },
               );
             },
