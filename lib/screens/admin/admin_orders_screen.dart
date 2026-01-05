@@ -13,7 +13,7 @@ import '../../repositories/waybill_repository.dart';
 import '../../models/order.dart';
 import 'assign_driver_dialog.dart';
 import 'waybill_detail_screen.dart';
-import 'admin_order_action_screen.dart';
+import 'admin_order_confirm_bottom_sheet.dart';
 
 class AdminOrdersScreen extends StatefulWidget {
   final String? initialStatus;
@@ -475,12 +475,25 @@ class _AdminOrdersScreenState extends State<AdminOrdersScreen> {
                 status: order.statusDisplay,
                 statusColor: _getStatusColor(order.status),
                 onTap: () async {
-                  // Navigate to action screen
-                  final result = await Navigator.push<bool>(
-                    context,
-                    MaterialPageRoute(
-                      builder: (context) =>
-                          AdminOrderActionScreen(orderId: order.id),
+                  // Show bottom sheet confirmation
+                  final result = await showModalBottomSheet<bool>(
+                    context: context,
+                    isScrollControlled: true,
+                    shape: const RoundedRectangleBorder(
+                      borderRadius: BorderRadius.vertical(
+                        top: Radius.circular(24),
+                      ),
+                    ),
+                    builder: (context) => DraggableScrollableSheet(
+                      initialChildSize: 0.7,
+                      minChildSize: 0.5,
+                      maxChildSize: 0.9,
+                      expand: false,
+                      builder: (context, scrollController) =>
+                          AdminOrderConfirmBottomSheet(
+                            order: order,
+                            scrollController: scrollController,
+                          ),
                     ),
                   );
                   // Refresh if action was successful

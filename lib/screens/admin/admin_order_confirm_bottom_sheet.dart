@@ -7,11 +7,17 @@ import '../../core/theme/app_radius.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../repositories/order_repository.dart';
 import '../../models/order.dart';
+import 'admin_order_action_screen.dart';
 
 class AdminOrderConfirmBottomSheet extends StatefulWidget {
   final Order order;
+  final ScrollController? scrollController;
 
-  const AdminOrderConfirmBottomSheet({super.key, required this.order});
+  const AdminOrderConfirmBottomSheet({
+    super.key,
+    required this.order,
+    this.scrollController,
+  });
 
   @override
   State<AdminOrderConfirmBottomSheet> createState() =>
@@ -69,7 +75,6 @@ class _AdminOrderConfirmBottomSheetState
   @override
   Widget build(BuildContext context) {
     return Container(
-      height: MediaQuery.of(context).size.height * 0.7,
       decoration: const BoxDecoration(
         color: AppColors.surface,
         borderRadius: BorderRadius.only(
@@ -92,6 +97,7 @@ class _AdminOrderConfirmBottomSheetState
 
           Expanded(
             child: SingleChildScrollView(
+              controller: widget.scrollController,
               padding: const EdgeInsets.all(AppSpacings.xl),
               child: Column(
                 children: [
@@ -242,6 +248,27 @@ class _AdminOrderConfirmBottomSheetState
                     style: AppTextStyles.titleMedium.copyWith(
                       color: AppColors.textSecondary,
                     ),
+                  ),
+                ),
+                const SizedBox(height: AppSpacings.xs),
+                TextButton.icon(
+                  onPressed: _isProcessing
+                      ? null
+                      : () {
+                          Navigator.pop(context); // Close bottom sheet
+                          Navigator.push(
+                            context,
+                            MaterialPageRoute(
+                              builder: (context) => AdminOrderActionScreen(
+                                orderId: widget.order.id,
+                              ),
+                            ),
+                          );
+                        },
+                  icon: const Icon(Icons.info_outline, size: 18),
+                  label: const Text('Lihat Detail Lengkap'),
+                  style: TextButton.styleFrom(
+                    foregroundColor: AppColors.primary,
                   ),
                 ),
               ],
