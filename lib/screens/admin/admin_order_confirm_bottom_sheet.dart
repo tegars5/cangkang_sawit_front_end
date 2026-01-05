@@ -1,3 +1,4 @@
+import 'package:cangkang_sawit_mobile/core/utils/result.dart';
 import 'package:flutter/material.dart';
 import '../../core/theme/app_colors.dart';
 import '../../core/theme/app_text_styles.dart';
@@ -35,24 +36,25 @@ class _AdminOrderConfirmBottomSheetState
       _isProcessing = false;
     });
 
-    result
-        .onSuccess((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pesanan berhasil disetujui'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-          Navigator.pop(context, true);
-        })
-        .onFailure((failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(failure.message),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        });
+    if (result is Success) {
+      if (!mounted) return;
+      ScaffoldMessenger.of(context).showSnackBar(
+        const SnackBar(
+          content: Text('Pesanan berhasil disetujui'),
+          backgroundColor: AppColors.success,
+        ),
+      );
+      Navigator.pop(context, true);
+    } else if (result is Failure) {
+      if (!mounted) return;
+      final failure = result as Failure;
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(failure.message),
+          backgroundColor: AppColors.error,
+        ),
+      );
+    }
   }
 
   String _getMainProductInfo() {
