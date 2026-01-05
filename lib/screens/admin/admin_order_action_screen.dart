@@ -11,6 +11,7 @@ import '../../models/order.dart';
 import 'assign_driver_dialog.dart';
 import 'create_waybill_dialog.dart';
 import 'admin_order_detail_screen.dart';
+import 'admin_order_confirm_bottom_sheet.dart';
 
 class AdminOrderActionScreen extends StatefulWidget {
   final int orderId;
@@ -63,56 +64,21 @@ class _AdminOrderActionScreenState extends State<AdminOrderActionScreen> {
   }
 
   Future<void> _handleApprove() async {
-    final confirm = await showDialog<bool>(
+    final result = await showModalBottomSheet<bool>(
       context: context,
-      builder: (context) => AlertDialog(
-        title: const Text('Konfirmasi Persetujuan'),
-        content: Text('Setujui pesanan ${_order!.orderCode}?'),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Batal'),
-          ),
-          TextButton(
-            onPressed: () => Navigator.pop(context, true),
-            child: const Text('Setujui'),
-          ),
-        ],
-      ),
+      isScrollControlled: true,
+      backgroundColor: Colors.transparent,
+      builder: (context) => AdminOrderConfirmBottomSheet(order: _order!),
     );
 
-    if (confirm != true) return;
-
-    setState(() {
-      _isProcessing = true;
-    });
-
-    final result = await _orderRepository.approveOrder(_order!.id);
-
-    if (!mounted) return;
-
-    setState(() {
-      _isProcessing = false;
-    });
-
-    result
-        .onSuccess((_) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Pesanan berhasil disetujui'),
-              backgroundColor: AppColors.success,
-            ),
-          );
-          Navigator.pop(context, true); // Return true to refresh list
-        })
-        .onFailure((failure) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(failure.message),
-              backgroundColor: AppColors.error,
-            ),
-          );
-        });
+    if (result == true) {
+      // Refresh order data
+      await _fetchOrder();
+      // Return to list with success
+      if (mounted) {
+        Navigator.pop(context, true);
+      }
+    }
   }
 
   Future<void> _handleCancel() async {
