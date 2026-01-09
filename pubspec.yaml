@@ -54,6 +54,11 @@ dependencies:
   google_maps_flutter: ^2.5.0
   flutter_polyline_points: ^2.0.0
 
+  image_picker: ^1.1.2      # pilih foto galeri/camera
+  dio: ^5.7.17             # upload multipart (lebih cepat dari http)
+  cached_network_image: ^3.4.1
+  path_provider: ^2.1.5    # akses path file
+
 dev_dependencies:
   flutter_test:
     sdk: flutter

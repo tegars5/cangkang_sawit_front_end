@@ -5,12 +5,11 @@ import '../../core/theme/app_text_styles.dart';
 import '../../core/theme/app_spacings.dart';
 import '../../core/constants/app_strings.dart';
 import '../../core/utils/validators.dart';
-import '../../core/utils/result.dart';
 import '../../core/widgets/app_text_field.dart';
 import '../../core/widgets/primary_button.dart';
 import '../../core/widgets/app_card.dart';
 import '../../core/widgets/icon_container.dart';
-import '../../repositories/auth_repository.dart';
+import '../../services/api_client.dart';
 import 'register_screen.dart';
 
 class LoginScreen extends StatefulWidget {
@@ -24,7 +23,7 @@ class _LoginScreenState extends State<LoginScreen> {
   final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController();
   final _passwordController = TextEditingController();
-  final _authRepository = AuthRepository();
+  final _apiClient = ApiClient();
   bool _isLoading = false;
   bool _obscurePassword = true;
 
@@ -44,65 +43,35 @@ class _LoginScreenState extends State<LoginScreen> {
       _isLoading = true;
     });
 
-    final result = await _authRepository.login(
-      _emailController.text.trim(),
-      _passwordController.text,
-    );
+    try {
+      await _apiClient.login(
+        _emailController.text.trim(),
+        _passwordController.text,
+      );
 
-    if (!mounted) return;
+      if (!mounted) return;
 
-    result
-        .onSuccess((data) async {
-          // Extract token and user data
-          final token = data['token'] as String;
-          final user = data['user'] as Map<String, dynamic>;
-          final role = user['role'] as String;
-
-          // Save authentication data
-          await _authRepository.saveToken(token);
-          await _authRepository.saveRole(role);
-          await _authRepository.saveUserData(user);
-
-          if (!mounted) return;
-
-          // Navigate based on role
-          switch (role) {
-            case 'mitra':
-              context.go('/mitra/orders');
-              break;
-            case 'admin':
-              context.go('/admin/orders');
-              break;
-            case 'driver':
-              context.go('/driver/tasks');
-              break;
-            default:
-              _showErrorDialog('Role tidak dikenali: $role');
-          }
-        })
-        .onFailure((failure) {
-          _showErrorDialog(failure.message);
+      // Navigate to home with role-based navigation
+      context.go('/home');
+    } catch (e) {
+      if (mounted) {
+        _showErrorSnackBar(e.toString().replaceAll('Exception: ', ''));
+      }
+    } finally {
+      if (mounted) {
+        setState(() {
+          _isLoading = false;
         });
-
-    if (mounted) {
-      setState(() {
-        _isLoading = false;
-      });
+      }
     }
   }
 
-  void _showErrorDialog(String message) {
-    showDialog(
-      context: context,
-      builder: (context) => AlertDialog(
-        title: Text(AppStrings.loginFailed),
+  void _showErrorSnackBar(String message) {
+    ScaffoldMessenger.of(context).showSnackBar(
+      SnackBar(
         content: Text(message),
-        actions: [
-          TextButton(
-            onPressed: () => Navigator.of(context).pop(),
-            child: const Text('OK'),
-          ),
-        ],
+        backgroundColor: AppColors.error,
+        behavior: SnackBarBehavior.floating,
       ),
     );
   }

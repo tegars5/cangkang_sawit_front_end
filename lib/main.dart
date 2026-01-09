@@ -6,9 +6,7 @@ import 'package:intl/date_symbol_data_local.dart';
 import 'core/theme/app_theme.dart';
 import 'services/api_client.dart';
 import 'screens/auth/login_screen.dart';
-import 'screens/mitra/orders_screen.dart';
-import 'screens/admin/admin_dashboard_screen.dart';
-import 'screens/driver/driver_tasks_screen.dart';
+import 'screens/home/home_screen.dart';
 
 void main() async {
   // Pastikan Flutter binding sudah diinisialisasi
@@ -56,19 +54,8 @@ class MyApp extends StatelessWidget {
       }
 
       // If has token and on login page, redirect based on role
-      if (hasToken && isLoginRoute) {
-        switch (role) {
-          case 'mitra':
-            return '/mitra/orders';
-          case 'admin':
-            return '/admin/orders';
-          case 'driver':
-            return '/driver/tasks';
-          default:
-            // Invalid role, clear token and stay on login
-            await apiClient.clearAllData();
-            return '/login';
-        }
+      if (hasToken && isLoginRoute && role != null) {
+        return '/home';
       }
 
       // No redirect needed
@@ -77,16 +64,34 @@ class MyApp extends StatelessWidget {
     routes: [
       GoRoute(path: '/login', builder: (context, state) => const LoginScreen()),
       GoRoute(
+        path: '/home',
+        builder: (context, state) {
+          return FutureBuilder<String?>(
+            future: ApiClient().getRole(),
+            builder: (context, snapshot) {
+              if (snapshot.connectionState == ConnectionState.waiting) {
+                return const Scaffold(
+                  body: Center(child: CircularProgressIndicator()),
+                );
+              }
+              final role = snapshot.data ?? 'user';
+              return HomeScreen(role: role);
+            },
+          );
+        },
+      ),
+      // Legacy routes for backward compatibility
+      GoRoute(
         path: '/mitra/orders',
-        builder: (context, state) => const MitraOrdersScreen(),
+        builder: (context, state) => const HomeScreen(role: 'mitra'),
       ),
       GoRoute(
         path: '/admin/orders',
-        builder: (context, state) => const AdminDashboardScreen(),
+        builder: (context, state) => const HomeScreen(role: 'admin'),
       ),
       GoRoute(
         path: '/driver/tasks',
-        builder: (context, state) => const DriverTasksScreen(),
+        builder: (context, state) => const HomeScreen(role: 'driver'),
       ),
     ],
   );
